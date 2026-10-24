@@ -360,9 +360,10 @@ function chatMsgs(id){const it=chatItems(id);let o='';
   o+=`<div class="ln ${me?'me':'th'} ${first?'first':''}">${me&&first?`<div class="sav meav">${avatarForMe()}</div>`:''}${!me&&first?`<div class="sav">${avatarFor(x.sender)}</div>`:''}<div class="col" style="${me?'align-items:flex-end':''}"><div class="wrap">${me?tm+bubble(x.text):bubble(x.text)+tm}</div></div></div>`});return o}
 VIEWS.chat=()=>({cls:'chat',html:`<div class="chat-h"><button class="bk" onclick="back()">${G.chevL}<span>${otherUnread()||''}</span></button><div class="nm">${esc(dn(chatId))}</div><div class="rt">${G.search}${G.menu}</div></div>
  <div class="msgs" id="msgs">${chatMsgs(chatId)}</div>
- <div class="chat-opts" id="opts"></div>`,
+ ${chatId==='周湘'?'<div class="chat-opts" id="opts"></div>':''}
+ <div class="cin safe" id="cin">${G.plusSq}<div class="fld ro" id="fld" onclick="${chatId==='周湘'?"showToast('点上面的选项回复')":''}">发消息</div>${G.smile}<button class="snd ro" id="snd" onclick="${chatId==='周湘'?"showToast('点上面的选项回复')":''}">${G.arrowUp}</button></div>`,
  init:()=>{if(chatId==='周湘')zhouUnread=0;else unread[chatId]=0;typing=false;replyBusy=false;
-  if(chatId==='周湘'){if(autoMsgDone&&chatStage==='pre')chatStage='sad';if(phoneDone&&chatStage!=='topics')chatStage='topics';}
+  if(chatId==='周湘'){if(autoMsgDone&&chatStage==='pre')chatStage='sad';if(phoneDone&&(!chatStage||chatStage==='pre'||chatStage==='sad'))chatStage='topics';}
   scrollChat();renderChoices()}});
 function scrollChat(smooth){const b=$('#msgs');if(!b)return;if(smooth)b.scrollTo({top:b.scrollHeight,behavior:'smooth'});else b.scrollTop=b.scrollHeight}
 function refreshChat(pop){const b=$('#msgs');if(!b||view!=='chat')return;b.innerHTML=chatMsgs(chatId);scrollChat();if(pop){const l=b.lastElementChild&&b.lastElementChild.querySelector('.bb');if(l)l.classList.add('pop')}}
@@ -373,13 +374,13 @@ function deliverSohee(text){todayChat.push([text,'them',nowAmpm()]);saveState();
  else{zhouUnread++;notify(text);if(view==='wechat')show('wechat');if(view==='home')renderHome()}}
 function pushMe(text){todayChat.push([text,'me',nowAmpm()]);if(view==='chat'&&chatId==='周湘')refreshChat(true);saveState()}
 
-function choiceSet(){if(chatStage==='topics')return LIVE_OPTIONS.topics;if(chatStage==='sad')return LIVE_OPTIONS.sad;return LIVE_OPTIONS.pre}
-function renderChoices(){const box=document.getElementById('opts');if(!box)return;if(callState){box.innerHTML='';box.classList.remove('on');return}
+function choiceSet(){return LIVE_OPTIONS[chatStage]||[]}
+function renderChoices(){const box=document.getElementById('opts');if(!box)return;if(chatId!=='周湘'||callState){box.innerHTML='';box.classList.remove('on');return}
  const list=choiceSet();box.innerHTML=list.map((o,i)=>`<button class="opt" onclick="chooseOption(${i})">${esc(o.t)}</button>`).join('');box.classList.toggle('on',list.length>0)}
 function chooseOption(i){if(callState||typing)return;const list=choiceSet(),o=list[i];if(!o)return;
  typing=true;pushMe(o.t);renderChoices();let tt=520;
  o.r.forEach(m=>{const dur=520+String(m).length*40;setTimeout(()=>{hideTyping();showTyping()},tt);tt+=dur;setTimeout(()=>{hideTyping();deliverSohee(m)},tt);tt+=220});
- setTimeout(()=>{typing=false;renderChoices();saveState()},tt+160)}
+ setTimeout(()=>{typing=false;if(o.next!==undefined)chatStage=o.next;renderChoices();saveState()},tt+160)}
 
 function afterCallTopics(){chatStage='topics';if(view==='chat'&&chatId==='周湘')renderChoices();saveState()}
 function branchAfter(kind){const me=kind==='miss'?BRANCH_MISS_ME:BRANCH_DECLINE_ME;const them=kind==='miss'?BRANCH_MISS_THEM:BRANCH_DECLINE_THEM;
