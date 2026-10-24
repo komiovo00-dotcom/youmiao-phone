@@ -3,14 +3,14 @@
    中文界面文案 · 日期时间（单语言：简体中文，window.LANG 固定 zh）
    ============================================================ */
 const LANG = 'zh';
-const STORY = { y: 2026, m: 10, d: 24 };   // 故事发生的“今天”：2026年10月24日 星期六
+const STORY = { y: 2026, m: 10, d: 21 };   // 故事发生的“今天”：2026年10月21日 星期三
 
 const UI = {
   /* 通用 */
   home: '主屏幕', now: '现在', cancel: '取消', delete: '删除', back: '返回', edit: '编辑',
   search: '搜索', add: '添加', share: '分享', more: '更多', moreInfo: '更多信息', info: '信息', noInfo: '暂无更多信息',
   all: '全部', allDay: '全天', today: '今天', yesterday: '昨天', noEvents: '无日程', calendars: '日历',
-  swipeUp: '向上轻扫以打开', enterPass: '输入密码', emergency: '紧急情况', hintPass: '密码 0805 · 由淼的生日',
+  swipeUp: '向上轻扫以打开', enterPass: '输入密码', emergency: '紧急情况', hintPass: '密码提示：0805',
   photo: '照片', video: '视频', voiceMsg: '语音消息', msgInput: '发消息',
   giftSent: '送出了礼物。', giftArrived: '礼物到啦', giftItem: '一杯热可可', giftCheck: '查看礼物',
   fileColon: '文件：', expired: '已过期', expPhoto: '照片已过期', expVideo: '视频已过期',
@@ -45,7 +45,7 @@ const UI = {
   /* 小红书 */
   posts: '笔记', followers: '粉丝', following: '关注', followingBtn: '已关注 ˅', followingTag: '已关注',
   message: '发消息', bio: '艾斯兔的小宠物 · 莱恩 / 莱财 / 脚脚 🐾', cover: '· 日常',
-  likedBy: '{0} 人觉得很赞', origAudio: '♫ 原声 · 莱恩莱财脚脚',
+  likedBy: '{0} 人觉得很赞', origAudio: '♫ 原声 · 莱恩莱财莱一脚',
   reels: '视频',
   /* 音乐 */
   songs: '歌曲', libraryMu: '资料库', play: '播放', shuffle: '⤮ 随机播放',

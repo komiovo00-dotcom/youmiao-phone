@@ -9,14 +9,16 @@ const elapsed=()=>(Date.now()-base)/1000+timeOffset;
 
 
 let view='lock',curDark=true,SC=1,lastRect=null,animTok=0,firstOpen=true,pendingOpen=null;
-let pincode='',noteId=0,selectedDay=24,calMonth=10,chatId='周湘',videoIndex=0,mailId=0,missOnly=false,safSearch=false;
+let pincode='',noteId=0,selectedDay=21,calMonth=10,chatId='周湘',videoIndex=0,mailId=0,missOnly=false,safSearch=false;
 let unread={'小米汽车-顾问':2,'宠物医院':1};
 let zhouUnread=0,todayChat=[],incoming=0,replyStage=0,lineIdx=0,typing=false,pendingText='',replyBusy=false;
-let alarmStates=Array(7).fill(true),readMail=new Set(),nowSong=-1,flashOn=false;
+let alarmStates=Array(2).fill(true),readMail=new Set(),nowSong=-1,flashOn=false;
+const ALARMS=[{h:9,m:0,label:'每天'},{h:15,m:0,label:'每天'}];
 let callState='',phoneDone=false,declined=0,callStart=0,callPrev='',nextCallAt=0,ringIv=null,ringTo=null,capIdx=-1,extraCalls=[];
 let askedCall=false,callName='周湘',callTimers=[],busySent=false,declineSent=false,rbIv=null;
 let userStage=0,callConfirmed=false,callBusySent=false;
-let lockNotes=[{title:'🐱',body:'我落地啦 上海好冷 你在干嘛',app:'wechat',time:t('now')},{title:'日历',body:'今晚 21:40 虹桥机场 T2 接机',app:'calendar',time:t('now')}];
+let chatStage='pre',autoMsgDone=false,callTriggered=false,callBranch='';
+let lockNotes=[{title:'🐱',body:'你排练到几点呀',app:'wechat',time:t('now')},{title:'日历',body:'今天 奶奶检查',app:'calendar',time:t('now')}];
 
 
 const pad=n=>String(n).padStart(2,'0');
@@ -142,8 +144,8 @@ document.addEventListener('pointerdown',()=>ac(),{once:true});
 
 
 function setStatus(dark){curDark=!!dark;$('#sb').classList.toggle('light',curDark);$('#hb').classList.toggle('light',curDark)}
-const ART=[A('media/cover_01.jpg'),A('media/cover_02.jpg'),A('media/cover_03.jpg'),A('media/cover_04.jpg'),A('media/cover_05.jpg')];
-const ARTIST=['郁可唯','八三夭','苏打绿','颜人中','陈奕迅'];
+const ART=[A('media/cover_01.jpg'),A('media/cover_02.jpg')];
+const ARTIST=['杨丞琳','杨丞琳'];
 function updateIsland(){typeof updateCrumb==='function'&&updateCrumb();const on=nowSong>=0&&!PLAYER.paused&&!['music','lock','pin'].includes(view)&&!OV.querySelector('.np,.call,.viewer');const il=$('#island');il.classList.toggle('act',on);if(on){const a=ART[nowSong];il.querySelector('.ia').style.backgroundImage=a?`url(${a})`:'linear-gradient(135deg,#ff9a9e,#fa2d48)'}}
 
 
@@ -151,7 +153,7 @@ function ncardHTML(n){const ic=n.app==='wechat'?`<div class="ni" style="position
  return `${ic}<div class="nt"><div class="nh"><span>${esc(n.title)}</span><small>${n.time}</small></div><div class="nb">${esc(n.body)}</div></div>`}
 function renderLock(){
  $('#lkc').innerHTML=`<div class="lk-date">${fmtLockDate()}</div><div class="lk-time" id="lkt">${clock12()}</div>
- <div class="lk-langw"><button class="lk-lang" onclick="event.stopPropagation();openLangSheet()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.8 3.5 5.8 3.5 9s-1 6.2-3.5 9c-2.5-2.8-3.5-5.8-3.5-9s1-6.2 3.5-9Z"/></svg>${(function(){var l=(window.LANGS||[]).filter(function(x){return x[0]===LANG})[0];return l?l[1]:''})()}</button></div>
+ <div class="lk-pw">${t('hintPass')}</div>
  <div class="lk-notes">${lockNotes.map((n,i)=>`<button class="ncard" data-i="${i}" onclick="lockNoteTap(${i},event)">${ncardHTML(n)}</button>`).join('')}</div>
  <button class="lk-btn" style="left:46px;${flashOn?'background:#fff;color:#000':''}" onclick="event.stopPropagation();flashOn=!flashOn;vib(15);renderLock()">${G.flash.replace('<svg','<svg width="24" height="24" style="color:'+(flashOn?'#000':'#fff')+'"')}</button>
  <button class="lk-btn" style="right:46px" onclick="event.stopPropagation();vib(15);this.animate([{transform:'scale(1.2)'},{transform:'none'}],250)">${G.camera.replace('<svg','<svg width="24" height="24" style="color:#fff"')}</button>
@@ -192,14 +194,14 @@ function badgeOf(id){if(id==='phone')return 1+declined;if(id==='mail')return[0,1
 function appBtn(id){const b=badgeOf(id);return `<button class="app" data-app="${id}" onclick="openApp('${id}',this.firstElementChild)"><div class="icon"><div class="ic">${appIcon(id)}</div>${b?`<span class="bdg">${b}</span>`:''}</div><span class="lbl">${t('app_'+id)}</span></button>`}
 function renderHome(){
  HOME.innerHTML=`<div class="hgrid">
-  <button class="widget wcal" data-app="calendar" onclick="openApp('calendar',this)"><div class="wd">${wdLong(STORY.y,STORY.m,STORY.d)}</div><div class="wn">${STORY.d}</div>${(events['10-24']||[]).map(x=>`<div class="we">${esc(x)}<small>${t('allDay')}</small></div>`).join('')}</button>
+  <button class="widget wcal" data-app="calendar" onclick="openApp('calendar',this)"><div class="wd">${wdLong(STORY.y,STORY.m,STORY.d)}</div><div class="wn">${STORY.d}</div>${(events[STORY.m+'-'+STORY.d]||[]).map(x=>{const p=x.split(' · ');return `<div class="we">${esc(p[0])}<small>${esc(p[1]||t('allDay'))}</small></div>`}).join('')}</button>
   <button class="widget wwx" data-app="weather" onclick="openApp('weather',this)"><div class="c">${t('city')} ➚</div><div class="tp">19°</div><span style="position:absolute;top:14px;right:14px">${G.sun}</span><div class="ds">${t('mostlySunny')}<small>${t('hiLo')}</small></div></button>
   ${['xhs','photos','mail','calendar','clock','notes','weather','settings','maps','recipe'].map(appBtn).join('')}
  </div><button class="spot" onclick="this.animate([{transform:'translateX(-50%) scale(1)'},{transform:'translateX(-50%) scale(1.08)'},{transform:'translateX(-50%) scale(1)'}],300)">${G.search.replace('<svg','<svg width="13" height="13"')}${t('search')}</button>
  <div class="dock">${['phone','safari','wechat','music'].map(appBtn).join('')}</div>`}
 
 
-const PARENT={note:'notes',chat:'wechat',maild:'mail',xhsProfile:'xhs',screentime:'settings'};
+const PARENT={note:'notes',chat:'wechat',moments:'wechat',maild:'mail',xhsProfile:'xhs',screentime:'settings'};
 const rootOf=v=>PARENT[v]||v;
 function viewDark(){if(['lock','pin','home'].includes(view))return true;const p=APP.lastElementChild;return!!(p&&p.dataset.dark)}
 function wireScroll(pg){const sc=pg.querySelector('.scroll');if(sc)sc.addEventListener('scroll',()=>pg.classList.toggle('scrolled',sc.scrollTop>38),{passive:true})}
@@ -258,7 +260,7 @@ const sw=(on,fn)=>`<button class="sw ${on?'on':''}" onclick="this.classList.togg
 const VIEWS={};
 
 
-function noteDate(d,full){const [y,m,dd]=d.split('-').map(Number);if(full)return fmtYMD(y,m,dd);if(d==='2026-10-24')return fmtTime(21*60+40);if(d==='2026-10-23')return t('yesterday');const diff=(new Date(STORY.y,STORY.m-1,STORY.d)-new Date(y,m-1,dd))/864e5;if(diff<7)return wdLong(y,m,dd);return fmtNum(y,m,dd)}
+function noteDate(d,full){const [y,m,dd]=d.split('-').map(Number);if(full)return fmtYMD(y,m,dd);if(d==='2026-10-20')return t('yesterday');const diff=(new Date(STORY.y,STORY.m-1,STORY.d)-new Date(y,m-1,dd))/864e5;if(diff<7)return wdLong(y,m,dd);return fmtNum(y,m,dd)}
 const noteRow=(n,i)=>`<button class="row tap" onclick="noteId=${i};push('note')"><b>${esc(n[0])}</b><small><em>${noteDate(n[3])}</em>${esc(n[1])}</small></button>`;
 VIEWS.notes=()=>({cls:'grouped notes-pg',html:navHTML({title:t('app_notes'),back:t('folders'),right:G.dots})+`<div class="scroll"><h1 class="lt">${t('app_notes')}</h1><div class="srch">${G.search}${t('search')}</div>
  <div class="gh" style="margin-top:8px">📌 ${t('pinned')}</div><div class="group note-l">${notes.slice(0,4).map((n,i)=>noteRow(n,i)).join('')}</div>
@@ -271,7 +273,7 @@ const RECIPES=[
  ['炒包菜','由淼拿手','包菜半个、干辣椒、蒜片\n\n1. 包菜手撕，沥干水\n2. 热锅冷油，下蒜片和干辣椒\n3. 大火快炒，加盐和一点点醋\n4. 出锅前淋一点生抽\n\n由淼：这个我做得比外卖好吃'],
  ['尖椒鸡丁','周五晚饭','鸡腿肉 300g、尖椒 4 个、姜蒜\n\n1. 鸡腿肉切丁，用生抽和淀粉腌十分钟\n2. 尖椒切段，热锅炒到起虎皮\n3. 下鸡丁大火炒熟\n4. 加一点糖和生抽\n\n周湘：别放太多辣椒']
 ];
-VIEWS.recipe=()=>({cls:'rcp',html:navHTML({title:'菜谱',back:'主屏幕',backFn:'closeApp()',right:G.plus})+`<div class="scroll"><h1>菜谱</h1><div class="sub">周湘收藏 · 适合两个人吃</div>${RECIPES.map(r=>`<div class="card"><b>${esc(r[0])}<em>${esc(r[1])}</em></b><p>${esc(r[2])}</p></div>`).join('')}<div style="height:24px"></div></div>`});
+VIEWS.recipe=()=>({cls:'rcp',html:navHTML({title:'菜谱',back:'主屏幕',backFn:'closeApp()',right:G.plus})+`<div class="scroll"><h1>菜谱</h1><div class="sub">由淼收藏 · 适合两个人吃</div>${RECIPES.map(r=>`<div class="card"><b>${esc(r[0])}</b><p>${esc(r[2])}</p></div>`).join('')}<div style="height:24px"></div></div>`});
 
 function calEvents(){return events[calMonth+'-'+selectedDay]||[]}
 VIEWS.calendar=()=>{const first=new Date(STORY.y,calMonth-1,1).getDay(),days=new Date(STORY.y,calMonth,0).getDate();let c='';for(let i=0;i<first;i++)c+='<div></div>';
@@ -285,9 +287,9 @@ function calNav(d){const n=calMonth+d;if(n<10||n>12)return;calMonth=n;selectedDa
 
 
 VIEWS.clock=()=>({cls:'dark',dark:true,html:`<div class="nav" style="color:#ff9f0a"><button style="color:#ff9f0a;font-size:17px;justify-self:start;padding-left:8px">${t('edit')}</button><div class="nb-title">${t('alarm')}</div><div class="nb-right" style="color:#ff9f0a">${G.plus}</div></div><div class="scroll"><h1 class="lt">${t('alarm')}</h1>
- <div style="margin:10px 16px 4px;font-size:15px;font-weight:600;display:flex;gap:6px;align-items:center">${t('sleepWake')}</div><div style="padding:8px 16px 14px;color:#8e8e93;font-size:15px;border-bottom:.5px solid rgba(255,255,255,.15)">${t('noAlarm')} <span style="float:right;color:#ff9f0a">${t('setUp')}</span></div>
+ 
  <div style="margin:18px 16px 4px;font-size:15px;font-weight:600">${t('other')}</div>
- ${Array.from({length:7},(_,i)=>`<div class="alarm ${alarmStates[i]?'':'off'}"><div><div class="at">${(p=>p.before?`<small>${p.dp}</small>${p.tm}`:`${p.tm}<small style="margin-left:4px">${p.dp}</small>`)(alarmParts(7,i))}</div><div class="al">${t('alarmLabel')}</div></div>${sw(alarmStates[i],`alarmStates[${i}]=!alarmStates[${i}];this.closest('.alarm').classList.toggle('off',!alarmStates[${i}])`)}</div>`).join('')}</div>
+ ${ALARMS.map((a,i)=>`<div class="alarm ${alarmStates[i]?'':'off'}"><div><div class="at">${(p=>p.before?`<small>${p.dp}</small>${p.tm}`:`${p.tm}<small style="margin-left:4px">${p.dp}</small>`)(alarmParts(a.h,a.m))}</div><div class="al">${a.label === '每天' ? '每天 · ' : a.label}${t('alarmLabel')}</div></div>${sw(alarmStates[i],`alarmStates[${i}]=!alarmStates[${i}];this.closest('.alarm').classList.toggle('off',!alarmStates[${i}])`)}</div>`).join('')}</div>
  ${tabbar([['globe',t('worldClock')],['alarm',t('alarm')],['stopwatch',t('stopwatch')],['timer',t('timer')]],1).replace('class="on"','class="on" style="color:#ff9f0a"')}`});
 
 
@@ -302,7 +304,7 @@ VIEWS.phone=()=>{const all=[...extraCalls,...calls].filter(c=>!missOnly||c[2]===
 
 const isGroup=n=>false;
 const MEMBERS={};
-function lastDate(n){const d=((chatData[n]||[]).filter(x=>x[1]==='date').slice(-1)[0]||[''])[0];return d==='10月23日'?'昨天':d}
+function lastDate(n){const d=((chatData[n]||[]).filter(x=>x[1]==='date').slice(-1)[0]||[''])[0];return d==='10月20日'?'昨天':d}
 function dateKey(n){if(n===MAIN_CHAT)return 999999;const l=lastDate(n);if(l==='今天')return 99999;if(l==='昨天')return 9999;const m=l.match(/(\d+)月(\d+)日/);return m?+m[1]*100+ +m[2]:0}
 function previewText(s,grp){const m=mediaLabels[s];if(m)return m.kind==='image'?t('photo'):m.kind==='video'?t('video'):m.kind==='gift'?t('giftSent'):m.kind==='file'?t('fileColon')+fileInfo(s)[0]:t('voiceMsg');
  const b=s.match(/^\[(.+)\]$/);if(b){const n=b[1];
@@ -318,10 +320,17 @@ function avatarFor(name,group){if(name===MAIN_CHAT)return '<img src="'+A('media/
 
 function otherUnread(){return Object.entries(unread).filter(([k])=>k!==chatId).reduce((a,[,b])=>a+b,0)+(chatId==='周湘'?0:zhouUnread)}
 VIEWS.wechat=()=>{const list=chatNames.slice().sort((a,b)=>dateKey(b)-dateKey(a));
- return{cls:'kk',html:`<div class="kk-h"><b>${t('chats')}</b><span>${G.search}${G.chatPlus}${G.gear}</span></div><div class="scroll">${list.map(n=>{const arr=chatData[n]||[];let last=arr.filter(x=>x[1]!=='date').slice(-1)[0],time=fmtLabel(lastDate(n)),cnt=unread[n]||0;
+ return{cls:'kk',html:`<div class="kk-h"><b>${t('chats')}</b><span>${G.search}${G.chatPlus}${G.gear}</span></div><div class="scroll"><button class="crow moments-entry" onclick="push('moments')"><div class="av">${avatarForMe()}</div><div style="flex:1;min-width:0"><div class="cn">朋友圈</div><div class="cp">由淼：贿赂成功~</div></div><div class="cm"><span class="ct">10/19</span></div></button>${list.map(n=>{const arr=chatData[n]||[];let last=arr.filter(x=>x[1]!=='date').slice(-1)[0],time=fmtLabel(lastDate(n)),cnt=unread[n]||0;
   if(n==='周湘'&&todayChat.length){last=todayChat[todayChat.length-1];time=last[2];cnt=zhouUnread}
   return `<button class="crow" onclick="chatId=${esc(JSON.stringify(n))};push('chat')"><div class="av">${avatarFor(n,isGroup(n))}</div><div style="flex:1;min-width:0"><div class="cn">${esc(dn(n))}${MEMBERS[n]?`<small>${MEMBERS[n]}</small>`:''}</div><div class="cp">${last?esc(previewText(last[0],isGroup(n))):''}</div></div><div class="cm"><span class="ct">${time}</span>${cnt?`<span class="kbdg">${cnt}</span>`:''}</div></button>`}).join('')}</div>
  ${tabbar([['person',t('friends')],['chat',t('chats')],['openchat',t('openChat')],['bag',t('shopping')],['dotsH',t('more')]],1)}`}};
+
+/* --- 朋友圈 --- */
+VIEWS.moments=()=>({cls:'moments',html:`<div class="nav solid"><button class="nb-back" onclick="back()">${G.chevL}微信</button><div class="nb-title">朋友圈</div><div class="nb-right">${G.camera}</div></div>
+ <div class="scroll">
+  <div class="mm-hero"><div class="mm-hero-av"><img src="${A('media/avatar_youmiao.jpg')}" alt=""></div><div class="mm-hero-name">由淼</div></div>
+  ${moments.map(m=>`<div class="mm-post"><div class="mm-head"><img src="${A(m.avatar)}" alt=""><b>${esc(m.name)}</b></div><p>${esc(m.text)}</p><div class="mm-img"><img src="${A(m.img)}" alt=""></div><div class="mm-time">${esc(m.time)}</div></div>`).join('')}
+ </div>`});
 
 const AUD_DUR={'media/voice_01.mp3':'0:08','media/voice_02.mp3':'0:11','media/voice_03.mp3':'0:06'};
 function fileInfo(n){if(/曲目|演出/.test(n))return[t('f_assign'),'1.2MB'];if(/训练|脚脚/.test(n))return[t('f_check'),'48KB'];return[t('f_assign2'),'1.3MB']}
@@ -351,87 +360,36 @@ function chatMsgs(id){const it=chatItems(id);let o='';
   o+=`<div class="ln ${me?'me':'th'} ${first?'first':''}">${me&&first?`<div class="sav meav">${avatarForMe()}</div>`:''}${!me&&first?`<div class="sav">${avatarFor(x.sender)}</div>`:''}<div class="col" style="${me?'align-items:flex-end':''}"><div class="wrap">${me?tm+bubble(x.text):bubble(x.text)+tm}</div></div></div>`});return o}
 VIEWS.chat=()=>({cls:'chat',html:`<div class="chat-h"><button class="bk" onclick="back()">${G.chevL}<span>${otherUnread()||''}</span></button><div class="nm">${esc(dn(chatId))}</div><div class="rt">${G.search}${G.menu}</div></div>
  <div class="msgs" id="msgs">${chatMsgs(chatId)}</div>
- <div class="cin safe" id="cin">${G.plusSq}<div class="fld" id="fld" contenteditable="true" data-ph="${t('msgInput')}" oninput="fldInput()" onkeydown="fldKey(event)"></div>${G.smile}<button class="snd" id="snd" onclick="sendMsg()">${G.arrowUp}</button></div>`,
- init:()=>{if(chatId==='周湘')zhouUnread=0;else unread[chatId]=0;typing=false;replyBusy=false;scrollChat();if(chatId==='周湘'&&incoming===0){incoming=2;deliverSohee(INCOMING[0]);setTimeout(()=>deliverSohee(INCOMING[1]),700);saveState()}}});
+ <div class="chat-opts" id="opts"></div>`,
+ init:()=>{if(chatId==='周湘')zhouUnread=0;else unread[chatId]=0;typing=false;replyBusy=false;
+  if(chatId==='周湘'){if(autoMsgDone&&chatStage==='pre')chatStage='sad';if(phoneDone&&chatStage!=='topics')chatStage='topics';}
+  scrollChat();renderChoices()}});
 function scrollChat(smooth){const b=$('#msgs');if(!b)return;if(smooth)b.scrollTo({top:b.scrollHeight,behavior:'smooth'});else b.scrollTop=b.scrollHeight}
 function refreshChat(pop){const b=$('#msgs');if(!b||view!=='chat')return;b.innerHTML=chatMsgs(chatId);scrollChat();if(pop){const l=b.lastElementChild&&b.lastElementChild.querySelector('.bb');if(l)l.classList.add('pop')}}
+function showTyping(){if(!(view==='chat'&&chatId==='周湘'))return;const b=$('#msgs');if(!b||document.getElementById('typ'))return;b.insertAdjacentHTML('beforeend',`<div class="ln th first" id="typ"><div class="sav">${avatarFor('周湘')}</div><div class="col"><div class="wrap"><div class="bb typing pop"><i></i><i></i><i></i></div></div></div></div>`);scrollChat(true)}
+function hideTyping(){const t=document.getElementById('typ');if(t)t.remove()}
+function deliverSohee(text){todayChat.push([text,'them',nowAmpm()]);saveState();
+ if(view==='chat'&&chatId==='周湘'){refreshChat(true);tone(1318,0,.12,.05)}
+ else{zhouUnread++;notify(text);if(view==='wechat')show('wechat');if(view==='home')renderHome()}}
+function pushMe(text){todayChat.push([text,'me',nowAmpm()]);if(view==='chat'&&chatId==='周湘')refreshChat(true);saveState()}
+
+function choiceSet(){if(chatStage==='topics')return LIVE_OPTIONS.topics;if(chatStage==='sad')return LIVE_OPTIONS.sad;return LIVE_OPTIONS.pre}
+function renderChoices(){const box=document.getElementById('opts');if(!box)return;if(callState){box.innerHTML='';box.classList.remove('on');return}
+ const list=choiceSet();box.innerHTML=list.map((o,i)=>`<button class="opt" onclick="chooseOption(${i})">${esc(o.t)}</button>`).join('');box.classList.toggle('on',list.length>0)}
+function chooseOption(i){if(callState||typing)return;const list=choiceSet(),o=list[i];if(!o)return;
+ typing=true;pushMe(o.t);renderChoices();let tt=520;
+ o.r.forEach(m=>{const dur=520+String(m).length*40;setTimeout(()=>{hideTyping();showTyping()},tt);tt+=dur;setTimeout(()=>{hideTyping();deliverSohee(m)},tt);tt+=220});
+ setTimeout(()=>{typing=false;renderChoices();saveState()},tt+160)}
+
+function afterCallTopics(){chatStage='topics';if(view==='chat'&&chatId==='周湘')renderChoices();saveState()}
+function branchAfter(kind){const me=kind==='miss'?BRANCH_MISS_ME:BRANCH_DECLINE_ME;const them=kind==='miss'?BRANCH_MISS_THEM:BRANCH_DECLINE_THEM;
+ chatStage='topics';saveState();let tt=350;
+ me.forEach(m=>{setTimeout(()=>{pushMe(m)},tt);tt+=520});
+ them.forEach(m=>{setTimeout(()=>{deliverSohee(m)},tt);tt+=1150});
+ setTimeout(()=>{if(view==='chat'&&chatId==='周湘')renderChoices();saveState()},tt+180)}
 function playChatAudio(){}
 
-/* ---------- 自由输入 ---------- */
-function fldEl(){return document.getElementById('fld')}
-function fldText(){const f=fldEl();return f?f.textContent.replace(/\u200b/g,'').replace(/\n+$/,'').trim():''}
-function fldInput(){const s=document.getElementById('snd');if(s)s.classList.toggle('on',!!fldText())}
-function fldKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg()}else{setTimeout(fldInput,0)}}
-function clearFld(){const f=fldEl();if(f)f.innerHTML='';fldInput()}
-function showTyping(){if(!(view==='chat'&&chatId==='周湘'))return;const b=$('#msgs');if(!b||$('#typ'))return;b.insertAdjacentHTML('beforeend',`<div class="ln th first" id="typ"><div class="sav">${avatarFor('周湘')}</div><div class="col"><div class="wrap"><div class="bb typing pop"><i></i><i></i><i></i></div></div></div></div>`);scrollChat(true)}
-function hideTyping(){const t=$('#typ');if(t)t.remove()}
-function deliverSohee(text){todayChat.push([text,'them',nowAmpm()]);saveState();
- if(view==='chat'&&chatId===MAIN_CHAT){refreshChat(true);tone(1318,0,.12,.05)}
- else{zhouUnread++;notify(text);if(view==='wechat')show('wechat');if(view==='home')renderHome()}}
-function incomingMsg(text){if(view==='chat'&&chatId==='周湘'){showTyping();setTimeout(()=>{hideTyping();deliverSohee(text)},1400)}else deliverSohee(text)}
-
-function askCall(){if(askedCall)return;askedCall=true;saveState();CALL_ASK.forEach((m,k)=>setTimeout(()=>deliverSohee(m),k*450))}
-
-/* 周湘的本地回复：基于抓取语料整理的关键词 + 句子池，离线可用 */
-const AI_KB=[
- {t:/脚脚|狗|狗狗|绝育|拆家|闹腾|定点|握手|坐下|趴下|洗澡|掉毛|洞洞鞋|十七斤|17斤|八个月/,r:[
-  "脚脚今天又拆了一个纸箱","它精力特别旺 一天没停过","戴着头套还到处跑",
-  "定点还是没完全学会","不过握手、坐下、趴下都会了","老师说它学得快 就是太爱玩",
-  "17 斤了 医生让控制零食","它不听我的 听你的","你回来管管它",
-  "今天给它洗澡 可乖了","美卡的脚太难打理了","还好买了洞洞鞋 5.5 最大码",
-  "它刚做完绝育 别让它舔伤口","我盯着呢","你安心工作"]},
- {t:/莱恩|莱财|猫|缅因|高冷|粘人|打架/,r:[
-  "莱财今天又打莱恩了","莱恩懒得理它 躲柜子上了","一冷一黏 挺好",
-  "莱恩一天能在窗台待十个小时","叫它也不理","莱财就黏着我 一直蹭腿",
-  "两只今天都洗过澡了 香香的","莱财洗完就追着莱恩打","hhhhhhh"]},
- {t:/想|爱|抱|亲|喜欢你|心动|惦记/,r:[
-  "我也想你","今天一直在想","回来抱","你在我就安心","别贫 我也爱你","嗯 我知道","再说一遍"]},
- {t:/戒指|生日|礼物|labubu|包|金|黑金/,r:[
-  "戒指戴着呢 洗澡都没摘","你送的那个 我一直戴","今年生日想要 labubu","包也可以 我不挑","你送的我都喜欢","别乱花钱 存着"]},
- {t:/公演|巡演|舞台|排练|演出|剧场|同频/,r:[
-  "22 号公演我看了直播 你状态特别好","我在屏幕前都看愣了","巡演的档期还没定","等定了我陪你练","别练太晚 嗓子会哑","你今天舞台上真的很好看"]},
- {t:/机场|落地|飞机|接机|虹桥|北京|T2|出口|航站楼/,r:[
-  "我在出口","行李好重","上海真的好冷","你到家了吗","我打车回去就行","你别折腾了","你来接我吗","真的假的","那我等你"]},
- {t:/湿疹|药|痒|身体|不舒服|感冒|咳嗽/,r:[
-  "药膏在床头柜 记得涂","换季就是这样","你别担心我","少熬夜 别吃辣","洗澡水别太烫","嗯 我会注意"]},
- {t:/吃|饭|饿|夜宵|椰子鸡|炒包菜|尖椒鸡丁|做饭/,r:[
-  "我想吃椰子鸡","你做的炒包菜最好吃","尖椒鸡丁也行 别太辣","等你回来一起吃","我不饿 你先吃","点个外卖吧 别太累"]},
- {t:/睡|晚安|困|熬夜/,r:[
-  "快去睡","晚安","明天还要早起","你要照顾好自己","睡吧 我陪你","抱抱"]},
- {t:/到家|回来|路上|几点|多久|等你/,r:[
-  "还有一会儿","路上注意安全","到了跟我说","我等你","别急 慢慢来","你先忙你的"]}
-];
-const AI_SWEET=["我也想你","今天特别想","等你回来","抱一下就好","你在我就安心","说好了 今晚早点睡","别太累 我心疼","我想听你说话","嗯 我在","乖乖的"];
-const AI_FALLBACK=["嗯 我在","怎么啦","你说","然后呢","hhhhhh","我在听","今天怎么样","有没有好好吃饭","我有点想你","你呢"];
-let aiRot={};
-function aiPick(key,arr,n){const start=aiRot[key]||0;const out=[];for(let i=0;i<n;i++)out.push(arr[(start+i)%arr.length]);aiRot[key]=(start+n)%arr.length;return out}
-function aiReply(text){
- const s=String(text||'').trim();let pool=null,key='';
- for(let i=0;i<AI_KB.length;i++){if(AI_KB[i].t.test(s)){pool=AI_KB[i].r;key='k'+i;break}}
- let msgs;
- if(pool){msgs=aiPick(key,pool,Math.min(3,1+Math.floor(Math.random()*2)))}
- else{msgs=aiPick('fb',AI_FALLBACK,1+Math.floor(Math.random()*2))}
- if(Math.random()<0.3){const sw=aiPick('sw',AI_SWEET,1)[0];if(!msgs.includes(sw))msgs.push(sw)}
- if(/脚脚|狗|狗狗/.test(s)&&Math.random()<0.5){const pool=['[照片·脚脚]','[照片·脚脚2]','[照片·脚脚3]','[照片·脚脚4]','[照片·脚脚等我]'];msgs.push(pool[Math.floor(Math.random()*pool.length)])}
- if(/莱恩|莱财|猫/.test(s)&&Math.random()<0.45)msgs.push('[照片·两只猫]');
- return msgs.slice(0,3)
-}
-function sendMsg(){
- if(callState||typing||replyBusy)return;
- const text=fldText();if(!text)return;
- todayChat.push([text,'me',nowAmpm()]);userStage++;clearFld();sfx('send');vib(8);refreshChat(true);saveState();
- if(askedCall&&!callConfirmed&&!callBusySent){
-  const pos=/可以|当然|好|行|嗯|打|来|ok|OK|想|接/.test(text)&&!/不|别|忙|等会|再说|晚点/.test(text);
-  if(pos){callConfirmed=true;saveState();setTimeout(()=>{if(!callState)incomingCall()},1600);return}
-  callBusySent=true;let bt=800;CALL_BUSY.forEach(m=>{setTimeout(()=>incomingMsg(m),bt);bt+=1500});setTimeout(saveState,bt+400);return;
- }
- replyBusy=true;typing=true;
- const replies=aiReply(text);let tt=900;
- replies.forEach(m=>{const dur=600+String(m).length*45;setTimeout(()=>{hideTyping();showTyping()},tt);tt+=dur;setTimeout(()=>{hideTyping();deliverSohee(m)},tt);tt+=220});
- const wait=tt+120;
- setTimeout(()=>{typing=false;replyBusy=false;saveState();if(userStage>=6&&!askedCall)setTimeout(askCall,900)},wait)
-}
-
+function showToast(msg){let d=OV.querySelector('.toast');if(d)d.remove();d=document.createElement('div');d.className='toast';d.textContent=msg;OV.appendChild(d);setTimeout(()=>d.remove(),2000)}
 function notify(body){sfx('msg');vib([30,60,30]);
  if(view==='lock'||view==='pin'){lockNotes.unshift({title:dn('周湘'),body,app:'wechat',time:t('now')});renderLock();saveState();const c=document.querySelector('.lk-notes .ncard');if(c)c.animate([{transform:'translateY(-30px) scale(.9)',opacity:0},{transform:'none',opacity:1}],{duration:500,easing:'cubic-bezier(.2,1.2,.4,1)'});return}
  OV.querySelectorAll('.banner').forEach(b=>b.remove());const b=document.createElement('div');b.className='banner';b.innerHTML=`<div class="ncard">${ncardHTML({title:dn('周湘'),body,app:'wechat',time:t('now')})}</div>`;OV.appendChild(b);
@@ -462,10 +420,8 @@ VIEWS.maild=()=>{const e=emails[mailId];const body=e[2];
 
 
 const allPhotos=[];photoSections.forEach(s=>s[1].forEach(n=>allPhotos.push({src:A('photos/'+n),sec:s[0],sub:s[2]})));
-const STORY_I=allPhotos.length;allPhotos.push({src:A('photos/chat_capture.jpg'),thumb:A('photos/chat_capture.jpg'),sec:'10月',sub:t('screenshot',fmtTime(21*60+41))});
 VIEWS.photos=()=>{let k=0;return{html:`<div class="nav"><span></span><div class="nb-title">${t('library')}</div><div class="nb-right">${G.search}<span>${t('select')}</span></div></div><div class="scroll" style="padding-bottom:120px"><h1 class="lt">${t('library')}</h1><div class="muted" style="margin:-6px 16px 10px;font-size:15px">${t('nPhotos',allPhotos.length)}</div>
- ${photoSections.map(s=>`<div class="ph-sec">${fmtLabel(s[0])}</div><div class="ph-grid">${s[1].map(n=>`<button data-pi="${k}" onclick="openViewer(${k++},this.firstElementChild)"><img src="${A('photos/'+n)}" alt=""></button>`).join('')}</div>`).join('')}
- <div class="ph-sec" style="margin-top:12px">截屏</div><div class="ph-grid"><button data-pi="${STORY_I}" onclick="openViewer(${STORY_I},this.firstElementChild)"><img src="${A('photos/chat_capture.jpg')}" alt=""></button></div></div>
+ ${photoSections.map(s=>`<div class="ph-sec">${fmtLabel(s[0])}</div><div class="ph-grid">${s[1].map(n=>`<button data-pi="${k}" onclick="openViewer(${k++},this.firstElementChild)"><img src="${A('photos/'+n)}" alt=""></button>`).join('')}</div>`).join('')}</div>
  <div class="phtabs"><button>${t('years')}</button><button>${t('months')}</button><button class="on">${t('allPhotos')}</button></div>`,init:pg=>{const sc=pg.querySelector('.scroll');sc.scrollTop=0}}};
 
 let vList=allPhotos,vIdx=0;
@@ -500,7 +456,7 @@ function viewerGestures(v){const img=v.querySelector('.vi'),bg=v.querySelector('
 
 /* --- 小红书 --- */
 /* --- 小红书（图文，无视频） --- */
-const XHS_AUTHOR='莱恩莱财脚脚';
+const XHS_AUTHOR='莱恩莱财莱一脚';
 function xhsCard(n,i){return `<div class="xhs-card"><div class="xhs-im" onclick="openViewerSrc('${A(n.img)}',this.firstElementChild)"><img src="${A(n.img)}" alt=""></div><div class="xhs-bd"><b>${esc(n.title)}</b><p>${esc(n.desc)}</p><div class="xhs-ft"><span>${esc(XHS_AUTHOR)}</span><span>❤ ${esc(n.likes)}</span></div></div></div>`}
 VIEWS.xhs=()=>({cls:'ig',html:`<div class="ig-h"><b>小红书</b><span style="flex:1"></span>${G.search}${G.bell}</div>
  <div class="scroll" style="padding-top:98px;padding-bottom:110px">
@@ -510,10 +466,10 @@ VIEWS.xhs=()=>({cls:'ig',html:`<div class="ig-h"><b>小红书</b><span style="fl
  <div class="tabbar"><button class="on">${G.home}<span>首页</span></button><button>${G.search}<span>购物</span></button><button>${G.comment}<span>消息</span></button><button onclick="push('xhsProfile')">${G.person}<span>我</span></button></div>`});
 VIEWS.xhsProfile=()=>({cls:'ig',html:`<div class="ig-h"><b>我的主页</b><span style="flex:1"></span><button onclick="back()" style="width:26px;color:#111">${G.chevL}</button></div>
  <div class="scroll" style="padding-top:98px;padding-bottom:110px">
-  <div class="igp"><div class="pp"><img src="${A('media/avatar_xhs.jpg')}" alt=""></div><div class="st"><span><b>8</b>${t('posts')}</span><span><b>1.2万</b>${t('followers')}</span><span><b>36</b>${t('following')}</span></div></div>
-  <div class="igbio"><b>莱恩莱财脚脚</b><br>${t('bio')}<br><span style="color:#999;font-size:13px">小红书号：youmiao_0805</span></div>
+  <div class="igp"><div class="pp"><img src="${A('media/avatar_xhs.jpg')}" alt=""></div><div class="st"><span><b>7</b>${t('posts')}</span><span><b>1.2万</b>${t('followers')}</span><span><b>36</b>${t('following')}</span></div></div>
+  <div class="igbio"><b>莱恩莱财莱一脚</b><br>${t('bio')}<br><span style="color:#999;font-size:13px">小红书号：zysj0203</span></div>
   <div class="igbtn"><button class="primary">${t('followingBtn')}</button><button>${t('message')}</button><button class="sq">${G.person.replace('<svg','<svg width="18" height="18"')}</button></div>
-  <div class="igtabs"><span class="on">笔记 8</span><span>收藏</span><span>赞过</span></div>
+  <div class="igtabs"><span class="on">笔记 7</span><span>收藏</span><span>赞过</span></div>
   <div class="iggrid">${xhsNotes.map(n=>`<button onclick="openViewerSrc('${A(n.img)}',this.firstElementChild)"><img src="${A(n.img)}" alt=""><span class="vc">❤ ${esc(n.likes)}</span></button>`).join('')}</div>
  </div>
  <div class="tabbar"><button onclick="show('xhs')">${G.home}<span>首页</span></button><button>${G.search}<span>购物</span></button><button>${G.comment}<span>消息</span></button><button class="on">${G.person}<span>我</span></button></div>`});
@@ -524,7 +480,7 @@ VIEWS.music=()=>({html:navHTML({title:t('songs'),back:t('libraryMu'),backFn:'clo
  ${songs.map((s,i)=>`<button class="mrow" onclick="playSong(${i})"><span class="art" style="${artStyle(i)}">${ART[i]?'':G.musicNote}</span><span class="mt ${i===nowSong?'pl':''}">${esc(s[0])}<small>${ARTIST[i]}</small></span><span style="color:#8e8e93">${G.dotsH.replace('<svg','<svg width="20"')}</span></button>`).join('')}</div>
  ${miniHTML()}${tabbar([['<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="m10 8.5 5 3.5-5 3.5Z" fill="currentColor"/></svg>',t('listenNow')],['<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg>',t('browse')],['<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="2"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/></svg>',t('radio')],['<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4v16M10 4v16M14.5 4.5l5 15"/></svg>',t('libraryMu')],['search',t('search')]],3).replace(/class="on"/,'class="on" style="color:#fa2d48"')}`});
 function miniHTML(){if(nowSong<0)return '';return `<div class="mini" onclick="openNP()"><span class="art" style="${artStyle(nowSong)}">${ART[nowSong]?'':G.musicNote}</span><b>${esc(songs[nowSong][0])}</b><button onclick="event.stopPropagation();toggleSong()">${PLAYER.paused?G.playF:G.pauseF}</button><button onclick="event.stopPropagation();nextSong(1)">${G.fwdF.replace('<svg','<svg width="30"')}</button></div>`}
-function playSong(i){nowSong=i;delete PLAYER.dataset.voice;PLAYER.src=A(songs[i][1]);PLAYER.onended=()=>nextSong(1);PLAYER.play().catch(()=>{});if(view==='music'){const sc=APP.querySelector('.scroll').scrollTop;const pg=show('music');pg.querySelector('.scroll').scrollTop=sc}refreshNP()}
+function playSong(i){if(!songs[i]||!songs[i][1]){showToast('音源待补：请提供《'+songs[i][0]+'》的音频文件');return}nowSong=i;delete PLAYER.dataset.voice;PLAYER.src=A(songs[i][1]);PLAYER.onended=()=>nextSong(1);PLAYER.play().catch(()=>{});if(view==='music'){const sc=APP.querySelector('.scroll').scrollTop;const pg=show('music');pg.querySelector('.scroll').scrollTop=sc}refreshNP()}
 function toggleSong(){if(PLAYER.paused)PLAYER.play().catch(()=>{});else PLAYER.pause();setTimeout(()=>{if(view==='music'){const m=APP.querySelector('.mini');if(m)m.outerHTML=miniHTML()}refreshNP();updateIsland()},30)}
 function nextSong(d){playSong((nowSong+d+songs.length)%songs.length)}
 function openNP(){if(nowSong<0)return;const n=document.createElement('div');n.className='np';OV.appendChild(n);refreshNP();setStatus(true);n.animate([{transform:'translateY(100%)'},{transform:'none'}],{duration:480,easing:'cubic-bezier(.2,.9,.25,1)'});
@@ -552,8 +508,8 @@ function mapSVG(){return `<svg width="900" height="1200" viewBox="0 0 900 1200" 
  <path d="M0 605H900" stroke="#ffe08a" stroke-width="20"/>
  <g stroke="#fff" stroke-width="5" fill="none" stroke-dasharray="2 9"><path d="M120 340H560M340 120V560"/></g>
  <g font-family="-apple-system,PingFang SC,Microsoft YaHei,sans-serif" fill="#8a8578" font-size="13" font-weight="600" text-anchor="middle">
-  <text x="340" y="152" font-size="16" fill="#7d6b55">${t('m_univ')}</text><text x="190" y="760" fill="#5f8f4e">${t('m_park')}</text>
-  <text x="450" y="598" fill="#9a7d2c">${t('m_road')}</text><text x="604" y="250" transform="rotate(90 604 250)">${t('m_back')}</text><text x="830" y="752">${t('m_alley')}</text><text x="812" y="430">${t('m_cafe')}</text>
+  <text x="340" y="152" font-size="16" fill="#7d6b55">${t('m_univ')}</text>
+  <text x="450" y="598" fill="#9a7d2c">${t('m_road')}</text><text x="604" y="250" transform="rotate(90 604 250)">${t('m_back')}</text><text x="830" y="752">${t('m_alley')}</text>
   <text x="335" y="425" font-size="11">${t('m_union')}</text><text x="200" y="450" font-size="11">${t('m_lib')}</text><text x="340" y="582" font-size="11">${t('m_gate')}</text><text x="560" y="1110" fill="#5b8fbf">${t('m_stream')}</text>
  </g></svg>`}
 const MG={home:'<path d="M4 11 12 4l8 7v9h-5v-6H9v6H4Z"/>',cup:'<path d="M5 8h11v6a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5Z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16M8 3v2M11 3v2"/>',pin:'<circle cx="12" cy="10" r="3"/><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"/>',bag:'<path d="M5 8h14l-1 12H6Z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/>',game:'<rect x="3" y="8" width="18" height="10" rx="5"/><path d="M8 11v4M6 13h4"/><circle cx="15.5" cy="12" r=".6"/><circle cx="17" cy="14.5" r=".6"/>',mic:'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/>',bowl:'<path d="M3.5 11h17a8.5 8.5 0 0 1-17 0Z"/><path d="M9 7c0-2 2-2 2-4M13 7c0-2 2-2 2-4"/>',bus:'<rect x="5" y="3" width="14" height="15" rx="3"/><path d="M5 11h14M8 18v2.5M16 18v2.5"/><circle cx="8.5" cy="14.5" r=".7"/><circle cx="15.5" cy="14.5" r=".7"/>'};
@@ -610,28 +566,27 @@ VIEWS.screentime=()=>{const apps=[['wechat',t('hm',2,41),100],['xhs',t('hm',1,52
 
 function startRing(){ringOnce();clearInterval(ringIv);ringIv=setInterval(()=>{ringOnce();vib([400,250,400])},2600);vib([400,250,400])}
 function stopRing(){clearInterval(ringIv);ringIv=null;clearTimeout(ringTo);try{navigator.vibrate&&navigator.vibrate(0)}catch(e){}}
-function incomingCall(){callName='周湘';callDir='in';callPrev=view;callState='ring';if(nowSong>=0||PLAYER.dataset.voice)PLAYER.pause();APP.querySelectorAll('video').forEach(v=>v.pause());OV.querySelectorAll('.banner').forEach(b=>b.remove());renderCall();startRing();ringTo=setTimeout(missCall,30000);saveState()}
+function incomingCall(){callName='周湘';callDir='in';callPrev=view;callState='ring';if(nowSong>=0||PLAYER.dataset.voice)PLAYER.pause();APP.querySelectorAll('video').forEach(v=>v.pause());OV.querySelectorAll('.banner').forEach(b=>b.remove());renderCall();startRing();ringTo=setTimeout(missCall,20000);saveState()}
 function callTop(){const isZ=callName==='周湘';const av=isZ?`<div class="wav"><img src="${A('media/avatar_zhouxiang.jpg')}" alt=""></div>`:`<div class="wav"><span style="width:100%;height:100%;display:grid;place-items:center;background:linear-gradient(#a5abb6,#7f858f)">${/^[0-9*-]+$/.test(callName)?G.sil.replace('<svg','<svg width="64"'):`<b style="font-size:40px;color:#fff;font-weight:500">${esc([...dn(callName)][0])}</b>`}</span></div>`;return av+`<div class="wnm">${esc(dn(callName))}</div>`}
 function renderCall(){let c=OV.querySelector('.call');if(!c){c=document.createElement('div');c.className='call wxc';OV.appendChild(c);c.animate([{opacity:0,transform:'scale(1.05)'},{opacity:1,transform:'none'}],{duration:380,easing:'cubic-bezier(.2,.9,.25,1)'})}
  setStatus(true);const dl=callState==='dialing';
  if(callState==='ring'){c.innerHTML=`<div class="wtop">${t('wechatCall')}</div>${callTop()}<div class="wsub">${t('inviteVoice')}</div><div class="wact"><button class="wbtn red" onclick="declineCall()"><i><span class="handset">${G.handset}</span></i>${t('decline')}</button><button class="wbtn grn ringing" onclick="answerCall()"><i>${G.handset}</i>${t('accept')}</button></div>`}
  else{c.innerHTML=`<div class="wtop">${t('wechatCall')}</div>${callTop()}<div class="wtime" id="ctime">${dl?t('calling'):'00:00'}</div>${dl?'':`<div class="wcap" id="cap"><small>${t('liveCap')}</small>…</div>`}<div class="wctl"><button class="wbtn" onclick="this.classList.toggle('on');vib(8)"><i>${G.muteF}</i>${t('mute')}</button><button class="wbtn" onclick="this.classList.toggle('on');vib(8)"><i>${G.speaker}</i>${t('speaker')}</button><button class="wbtn hang" onclick="endCall()"><i><span class="handset">${G.handset}</span></i>${t('endCall')}</button></div>`}}
 function answerCall(){if(callDir==='in'){curScript=speech;isEnding=true}stopRing();stopRingback();vib(20);callState='active';callStart=Date.now();capIdx=-1;renderCall();saveState()}
-function declineCall(){stopRing();callState='';declined++;extraCalls.unshift(['周湘','今天 '+fmtTime(22*60+44+extraCalls.length),'未接']);afterDecline();closeCallUI();saveState()}
-function missCall(){if(callState!=='ring')return;stopRing();callState='';declined++;extraCalls.unshift(['周湘','今天 '+fmtTime(22*60+44+extraCalls.length),'未接']);afterDecline();closeCallUI();if(['lock','pin'].includes(view)){lockNotes.unshift({title:t('missedCall'),body:dn('周湘'),app:'phone',time:t('now')});renderLock()}saveState()}
+function declineCall(){stopRing();callState='';declined++;extraCalls.unshift(['周湘','今天 '+fmtTime(22*60+44+extraCalls.length),'未接']);branchAfter('decline');closeCallUI();saveState()}
+function missCall(){if(callState!=='ring')return;stopRing();callState='';declined++;extraCalls.unshift(['周湘','今天 '+fmtTime(22*60+44+extraCalls.length),'未接']);branchAfter('miss');closeCallUI();if(['lock','pin'].includes(view)){lockNotes.unshift({title:t('missedCall'),body:dn('周湘'),app:'phone',time:t('now')});renderLock()}saveState()}
 function endCall(){if(callState==='dialing'){clearCallTimers();stopRingback();callState='';extraCalls.unshift([callName,'今天 '+fmtTime(22*60+44+extraCalls.length),'拨出']);closeCallUI();if(view==='phone')show('phone');saveState();return}
  if(callState!=='active')return;callState='ended';vib(15);const tEl=$('#ctime');if(tEl)tEl.textContent=t_('callEnded');const c=OV.querySelector('.call');c&&c.querySelectorAll('.wbtn').forEach(b=>b.style.opacity=.4);
- extraCalls.unshift([callName,'今天 '+fmtTime(22*60+44+extraCalls.length),callDir==='out'?'拨出':'接听']);if(isEnding)phoneDone=true;isEnding=false;saveState();setTimeout(()=>{callState='';closeCallUI();if(view==='phone')show('phone')},1100)}
-function afterDecline(){if(declineSent)return;declineSent=true;CALL_DECLINED.forEach((m,k)=>setTimeout(()=>incomingMsg(m),3000+k*2600));saveState()}
+ extraCalls.unshift([callName,'今天 '+fmtTime(22*60+44+extraCalls.length),callDir==='out'?'拨出':'接听']);if(isEnding)phoneDone=true;isEnding=false;saveState();setTimeout(()=>{callState='';closeCallUI();if(view==='phone')show('phone');afterCallTopics()},1100)}
 let callDir='in',curScript=null,isEnding=false;
 function clearCallTimers(){callTimers.forEach(clearTimeout);callTimers=[]}
 function startRingback(){const r=()=>{tone(440,0,1,.05);tone(480,0,1,.05)};r();clearInterval(rbIv);rbIv=setInterval(r,3000)}
 function stopRingback(){clearInterval(rbIv);rbIv=null}
 function dial(name){if(callState)return;callName=name;callDir='out';callPrev=view;callState='dialing';if(nowSong>=0||PLAYER.dataset.voice)PLAYER.pause();renderCall();startRingback();vib(10);
  const pick=(sc,ms,end)=>{callTimers.push(setTimeout(()=>{if(callState!=='dialing')return;curScript=sc;isEnding=!!end;answerCall()},ms))};
- if(name==='周湘'&&!phoneDone&&askedCall)pick(speech,4200,true);
+ if(name==='周湘'&&!phoneDone&&callTriggered)pick(speech,4200,true);
  else if(name==='周湘'&&phoneDone)pick(SOHEE_AFTER,6000);
- else if(name==='周湘'){callTimers.push(setTimeout(()=>{if(callState!=='dialing')return;rejectOut(t('callEnded'));if(!busySent){busySent=true;CALL_BUSY.forEach((m,k)=>setTimeout(()=>incomingMsg(m),2500+k*2600))}},3500))}
+ else if(name==='周湘'){callTimers.push(setTimeout(()=>{if(callState!=='dialing')return;rejectOut(t('callEnded'));if(!busySent){busySent=true;['你在忙吗','那我等你忙完','先不打扰你啦'].forEach((m,k)=>setTimeout(()=>deliverSohee(m),2500+k*2600))}},3500))}
  else if(OTHER_CALLS[name])pick(OTHER_CALLS[name],/^0/.test(name)?1800:3000+Math.random()*3000);
  else{callTimers.push(setTimeout(()=>{if(callState==='dialing')rejectOut(t('noAnswer'))},9000))}}
 function rejectOut(msg){stopRingback();clearCallTimers();const tEl=$('#ctime');if(tEl)tEl.textContent=msg;tone(480,0,.25,.05);tone(480,.35,.25,.05);tone(480,.7,.25,.05);extraCalls.unshift([callName,'今天 '+fmtTime(22*60+44+extraCalls.length),'拨出']);callState='ended';
@@ -643,24 +598,23 @@ let lastMin=-1;
 function tick(){typeof updateCrumb==="function"&&updateCrumb();const now=new Date();$('#sbt').textContent=clock12();const lk=$('#lkt');if(lk)lk.textContent=clock12();
  if(now.getMinutes()!==lastMin){lastMin=now.getMinutes();if(view==='home'&&!HOME.getAnimations().length)renderHome()}
  const e=elapsed();
- if(e>=40&&incoming===0){incoming=1;incomingMsg(INCOMING[0]);saveState()}
- if(e>=43.5&&incoming===1){incoming=2;incomingMsg(INCOMING[1]);saveState()}
+ if(!autoMsgDone&&e>=60){autoMsgDone=true;chatStage='sad';deliverSohee(AUTO_MSG);if(view==='chat'&&chatId==='周湘')renderChoices();saveState()}
+ if(!callTriggered&&e>=120){callTriggered=true;saveState();if(!callState&&!phoneDone&&!declined)incomingCall()}
  if(callState==='active'){const sec=Math.floor((Date.now()-callStart)/1000);const tm=$('#ctime');if(tm)tm.textContent=pad(Math.floor(sec/60))+':'+pad(sec%60);
   const S=curScript||speech;const idx=Math.min(S.length-1,Math.floor(sec/3));if(idx!==capIdx){capIdx=idx;const cap=$('#cap');if(cap){cap.animate([{opacity:.2,transform:'translateY(6px)'},{opacity:1,transform:'none'}],{duration:280});cap.innerHTML=`<small>${esc(dn(S[idx][0]))}</small>${esc(S[idx][1])}`}}
   if(sec>S.length*3+2)endCall()}}
 
 function fit(){const ph=$('#phone');const mob=innerWidth<=540;ph.classList.toggle('mob',mob);ph.classList.toggle('short',mob&&innerHeight<740);if(mob){ph.style.width=innerWidth+'px';ph.style.height=innerHeight+'px';ph.style.transform='';SC=1}else{ph.style.width='393px';ph.style.height='852px';SC=Math.min((innerHeight-40)/852,(innerWidth-40)/393,1.1);ph.style.transform=`scale(${SC})`}}
-const SAVE_KEY='youmiao_phone_v2';
+const SAVE_KEY='youmiao_phone_v5';
 let unlocked=false;
-function saveState(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({v:4,unlocked:unlocked,todayChat:todayChat,userStage:userStage,askedCall:askedCall,callConfirmed:callConfirmed,callBusySent:callBusySent,phoneDone:phoneDone,declined:declined,extraCalls:extraCalls,incoming:incoming,declineSent:declineSent,readMail:[...readMail],alarmStates:alarmStates,nowSong:nowSong,lockNotes:lockNotes}))}catch(e){}}
-function loadState(){try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');if(!s||s.v!==4)return false;
- unlocked=!!s.unlocked;todayChat=s.todayChat||[];userStage=s.userStage||0;askedCall=!!s.askedCall;callConfirmed=!!s.callConfirmed;callBusySent=!!s.callBusySent;phoneDone=!!s.phoneDone;declined=s.declined||0;extraCalls=s.extraCalls||[];incoming=s.incoming||0;declineSent=!!s.declineSent;if(s.readMail)readMail=new Set(s.readMail);if(s.alarmStates)alarmStates=s.alarmStates;if(typeof s.nowSong==='number')nowSong=s.nowSong;if(s.lockNotes)lockNotes=s.lockNotes;
+function saveState(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({v:5,unlocked:unlocked,todayChat:todayChat,chatStage:chatStage,autoMsgDone:autoMsgDone,callTriggered:callTriggered,callBranch:callBranch,phoneDone:phoneDone,declined:declined,extraCalls:extraCalls,readMail:[...readMail],alarmStates:alarmStates,lockNotes:lockNotes}))}catch(e){}}
+function loadState(){try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');if(!s||s.v!==5)return false;
+ unlocked=!!s.unlocked;todayChat=s.todayChat||[];chatStage=s.chatStage||'pre';autoMsgDone=!!s.autoMsgDone;callTriggered=!!s.callTriggered;callBranch=s.callBranch||'';phoneDone=!!s.phoneDone;declined=s.declined||0;extraCalls=s.extraCalls||[];if(s.readMail)readMail=new Set(s.readMail);if(s.alarmStates)alarmStates=s.alarmStates;if(s.lockNotes)lockNotes=s.lockNotes;
  return true}catch(e){return false}}
 function resetProgress(){try{localStorage.removeItem(SAVE_KEY)}catch(e){}location.reload()}
 
 addEventListener('resize',fit);fit();
 const restored=loadState();
 renderLock();renderHome();setStatus(true);
-if(restored&&unlocked){view='home';LOCK.style.visibility='hidden';$('#pinL').style.display='none';$('#wall').classList.remove('dim');HOME.style.visibility='visible';renderHome();setStatus(true);
- if(askedCall&&callConfirmed&&!phoneDone&&!declineSent){setTimeout(()=>{if(!callState)incomingCall()},2600)}}
+if(restored&&unlocked){view='home';LOCK.style.visibility='hidden';$('#pinL').style.display='none';$('#wall').classList.remove('dim');HOME.style.visibility='visible';renderHome();setStatus(true)}
 setInterval(tick,250);tick();

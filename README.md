@@ -2,4 +2,4 @@
 
 https://komiovo00-dotcom.github.io/youmiao-phone/
 
-单页互动网页；静态资源直接部署。
+固定选项聊天 + 1 分钟消息 + 2 分钟来电；多文件静态站。
