@@ -1,4 +1,4 @@
-﻿# 由淼的手机
+﻿# 手机
 
 https://komiovo00-dotcom.github.io/youmiao-phone/
 
