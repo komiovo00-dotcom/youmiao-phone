@@ -3,7 +3,7 @@
    中文界面文案 · 日期时间（单语言：简体中文，window.LANG 固定 zh）
    ============================================================ */
 const LANG = 'zh';
-const STORY = { y: 2026, m: 10, d: 21 };   // 故事发生的“今天”：2026年10月21日 星期三
+const STORY = { y: 2026, m: 10, d: 19 };   // 故事发生的“今天”：2026年10月19日 星期一
 
 const UI = {
   /* 通用 */
@@ -16,7 +16,7 @@ const UI = {
   fileColon: '文件：', expired: '已过期', expPhoto: '照片已过期', expVideo: '视频已过期',
   space: '空格', ret: '换行', searchWeb: '搜索或输入网址', recentSearches: '最近搜索', clear: '清除',
   /* 应用名 */
-  app_wechat: '微信', app_phone: '电话', app_photos: '相册', app_xhs: '小红书',
+  app_wechat: '微信', app_phone: '电话', app_photos: '相册', app_xhs: '小红书', app_douyin: '抖音',
   app_mail: '邮件', app_calendar: '日历', app_clock: '时钟', app_notes: '备忘录',
   app_weather: '天气', app_settings: '设置', app_safari: 'Safari', app_music: '音乐',
   app_maps: '地图', app_recipe: '菜谱',
@@ -36,7 +36,7 @@ const UI = {
   keypad: '拨号键盘', voicemail: '语音留言', calling: '正在呼叫…', callEnded: '通话结束', noAnswer: '无人接听',
   missedCall: '未接来电', slideAnswer: '滑动来接听', decline: '拒绝', accept: '接听',
   speaker: '免提', mute: '静音', addCall: '添加通话', endCall: '挂断', liveCap: '实时字幕',
-  inviteVoice: '邀请你语音通话', wechatCall: '微信语音通话', remind: '提醒我', message2: '信息',
+  inviteVoice: '邀请你语音通话', wechatCall: '语音通话', remind: '提醒我', message2: '信息',
   /* 邮件 */
   inbox: '收件箱', mailboxes: '邮箱', updatedNow: '刚刚更新', toMe: '收件人：我 ›',
   /* 照片 */

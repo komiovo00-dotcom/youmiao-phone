@@ -9,16 +9,16 @@ const elapsed=()=>(Date.now()-base)/1000+timeOffset;
 
 
 let view='lock',curDark=true,SC=1,lastRect=null,animTok=0,firstOpen=true,pendingOpen=null;
-let pincode='',noteId=0,selectedDay=21,calMonth=10,chatId='周湘',videoIndex=0,mailId=0,missOnly=false,safSearch=false;
+let pincode='',noteId=0,selectedDay=19,calMonth=10,chatId='周湘',videoIndex=0,mailId=0,missOnly=false,safSearch=false;
 let unread={'小米汽车-顾问':2,'宠物医院':1};
-let zhouUnread=0,todayChat=[],incoming=0,replyStage=0,lineIdx=0,typing=false,pendingText='',replyBusy=false;
+let zhouUnread=0,todayChat=(typeof TODAY_HISTORY!=='undefined'?TODAY_HISTORY.map(x=>x.slice()):[]),incoming=0,replyStage=0,lineIdx=0,typing=false,pendingText='',replyBusy=false;
 let alarmStates=Array(2).fill(true),readMail=new Set(),nowSong=-1,flashOn=false;
 const ALARMS=[{h:9,m:0,label:'每天'},{h:15,m:0,label:'每天'}];
 let callState='',phoneDone=false,declined=0,callStart=0,callPrev='',nextCallAt=0,ringIv=null,ringTo=null,capIdx=-1,extraCalls=[];
 let askedCall=false,callName='周湘',callTimers=[],busySent=false,declineSent=false,rbIv=null;
 let userStage=0,callConfirmed=false,callBusySent=false;
-let chatStage='pre',autoMsgDone=false,callTriggered=false,callBranch='';
-let lockNotes=[{title:'🐱',body:'你排练到几点呀',app:'wechat',time:t('now')},{title:'日历',body:'今天 奶奶检查',app:'calendar',time:t('now')}];
+let chatStage='pre',autoMsgDone=false,callTriggered=false,callBranch='',doneKeys={};
+let lockNotes=[{title:'🐱',body:'你几点回来呀',app:'wechat',time:t('now')}];
 
 
 const pad=n=>String(n).padStart(2,'0');
@@ -26,7 +26,7 @@ const esc=v=>String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'
 const clock12=()=>{const d=new Date();return((d.getHours()%12)||12)+':'+pad(d.getMinutes())};
 function ampm(min){return fmtTime(min)}
 const nowMin=()=>{const d=new Date();return d.getHours()*60+d.getMinutes()};
-const nowAmpm=()=>fmtTime(22*60+41+(todayChat.filter(x=>x[1]!=='date').length));
+const nowAmpm=()=>{const last=todayChat[todayChat.length-1];if(last&&last[2]&&/^\d{2}:\d{2}$/.test(last[2])){const [h,m]=last[2].split(':').map(Number);return fmtTime(h*60+m+1)}return fmtTime(22*60+41+todayChat.filter(x=>x[1]!=='date').length)};
 function relRect(el){const s=SCREEN.getBoundingClientRect(),r=el.getBoundingClientRect();return{x:(r.left-s.left)/SC,y:(r.top-s.top)/SC,w:r.width/SC,h:r.height/SC}}
 const vib=p=>{try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}};
 const t_=t;const T={duration:460,easing:'cubic-bezier(.32,.72,0,1)'};
@@ -114,6 +114,7 @@ function appIcon(id){
  const W=(defs,body)=>`<svg viewBox="0 0 60 60"><defs>${defs}</defs>${body}</svg>`;
  switch(id){
  case'xhs':return W('',`<rect width="60" height="60" fill="#ff2442"/><text x="30" y="25.5" text-anchor="middle" font-size="14.5" font-weight="700" fill="#fff" font-family="PingFang SC,Microsoft YaHei,sans-serif">小红书</text>`);
+ case'douyin':return W('',`<rect width="60" height="60" fill="#010101"/><g><path d="M38 12.5v23.2a9.6 9.6 0 1 1-4.4-8.1V12.5Z" fill="#25f4ee"/><path d="M35.2 9.6v23.2a9.6 9.6 0 1 1-4.4-8.1V9.6Z" fill="#fe2c55"/><path d="M33 8.2v23.4a8.6 8.6 0 1 1-4-7.4V8.2Z" fill="#fff"/><rect x="40.5" y="8.2" width="2.2" height="26.4" rx="1.1" fill="#fff"/></g>`);
 
 case'photos':{let p='';for(let i=0;i<10;i++)p+=`<ellipse cx="30" cy="18.2" rx="4.4" ry="10.5" fill="#fff" transform="rotate(${i*36} 30 30)"/>`;return W(L('gp','#9bdcff','#d8f1ff'),`<rect width="60" height="60" fill="url(#gp)"/>${p}<circle cx="30" cy="30" r="7.2" fill="#ffc83d"/><circle cx="30" cy="30" r="7.2" fill="none" stroke="#f0a500" stroke-width="1"/>`)}
  case'mail':return W(L('gm','#3fb0ff','#0a6cf5'),`<rect width="60" height="60" fill="url(#gm)"/><rect x="11.5" y="18" width="37" height="25" rx="3.5" fill="#fff"/><path d="M12.5 20 30 32.5 47.5 20" fill="none" stroke="#1676f3" stroke-width="2.4" stroke-linejoin="round"/>`);
@@ -153,7 +154,6 @@ function ncardHTML(n){const ic=n.app==='wechat'?`<div class="ni" style="position
  return `${ic}<div class="nt"><div class="nh"><span>${esc(n.title)}</span><small>${n.time}</small></div><div class="nb">${esc(n.body)}</div></div>`}
 function renderLock(){
  $('#lkc').innerHTML=`<div class="lk-date">${fmtLockDate()}</div><div class="lk-time" id="lkt">${clock12()}</div>
- <div class="lk-pw">${t('hintPass')}</div>
  <div class="lk-notes">${lockNotes.map((n,i)=>`<button class="ncard" data-i="${i}" onclick="lockNoteTap(${i},event)">${ncardHTML(n)}</button>`).join('')}</div>
  <button class="lk-btn" style="left:46px;${flashOn?'background:#fff;color:#000':''}" onclick="event.stopPropagation();flashOn=!flashOn;vib(15);renderLock()">${G.flash.replace('<svg','<svg width="24" height="24" style="color:'+(flashOn?'#000':'#fff')+'"')}</button>
  <button class="lk-btn" style="right:46px" onclick="event.stopPropagation();vib(15);this.animate([{transform:'scale(1.2)'},{transform:'none'}],250)">${G.camera.replace('<svg','<svg width="24" height="24" style="color:#fff"')}</button>
@@ -196,17 +196,17 @@ function renderHome(){
  HOME.innerHTML=`<div class="hgrid">
   <button class="widget wcal" data-app="calendar" onclick="openApp('calendar',this)"><div class="wd">${wdLong(STORY.y,STORY.m,STORY.d)}</div><div class="wn">${STORY.d}</div>${(events[STORY.m+'-'+STORY.d]||[]).map(x=>{const p=x.split(' · ');return `<div class="we">${esc(p[0])}<small>${esc(p[1]||t('allDay'))}</small></div>`}).join('')}</button>
   <button class="widget wwx" data-app="weather" onclick="openApp('weather',this)"><div class="c">${t('city')} ➚</div><div class="tp">19°</div><span style="position:absolute;top:14px;right:14px">${G.sun}</span><div class="ds">${t('mostlySunny')}<small>${t('hiLo')}</small></div></button>
-  ${['xhs','photos','mail','calendar','clock','notes','weather','settings','maps','recipe'].map(appBtn).join('')}
+  ${['douyin','xhs','photos','mail','calendar','clock','notes','weather','settings','maps','recipe'].map(appBtn).join('')}
  </div><button class="spot" onclick="this.animate([{transform:'translateX(-50%) scale(1)'},{transform:'translateX(-50%) scale(1.08)'},{transform:'translateX(-50%) scale(1)'}],300)">${G.search.replace('<svg','<svg width="13" height="13"')}${t('search')}</button>
  <div class="dock">${['phone','safari','wechat','music'].map(appBtn).join('')}</div>`}
 
 
-const PARENT={note:'notes',chat:'wechat',moments:'wechat',maild:'mail',xhsProfile:'xhs',screentime:'settings'};
+const PARENT={note:'notes',chat:'wechat',maild:'mail',xhsProfile:'xhs',xhsPost:'xhs',xhsSearch:'xhs',screentime:'settings'};
 const rootOf=v=>PARENT[v]||v;
 function viewDark(){if(['lock','pin','home'].includes(view))return true;const p=APP.lastElementChild;return!!(p&&p.dataset.dark)}
 function wireScroll(pg){const sc=pg.querySelector('.scroll');if(sc)sc.addEventListener('scroll',()=>pg.classList.toggle('scrolled',sc.scrollTop>38),{passive:true})}
 function show(id,anim='swap'){
- const old=[...APP.children];old.forEach(o=>{o.querySelectorAll('video').forEach(v=>v.pause())});
+ const old=[...APP.children];old.forEach(o=>{o.querySelectorAll('video').forEach(v=>v.pause());if(o._cleanup)o._cleanup()});
  if(PLAYER.dataset.voice&&!(id==='chat')){PLAYER.pause()}
  view=id;const v=VIEWS[id]();const pg=document.createElement('div');pg.className='pg '+(v.cls||'');pg.innerHTML=v.html;pg.dataset.view=id;pg.dataset.dark=v.dark?'1':'';
  if(anim==='pop')APP.insertBefore(pg,APP.firstChild);else APP.appendChild(pg);
@@ -234,7 +234,7 @@ function closeApp(){if(callState||['home','lock','pin'].includes(view))return;
  HOME.animate([{transform:'scale(1.1)',opacity:0},{transform:'none',opacity:1}],{duration:460,easing:'cubic-bezier(.2,.9,.22,1)'});updateIsland()}
 function push(id){show(id,'push')}
 function back(){if(PARENT[view])show(PARENT[view],'pop');else closeApp()}
-function hbAction(){if(callState)return;const vw=OV.querySelector('.viewer');if(vw)return closeViewer();if(OV.querySelector('.np'))return closeNP();
+function hbAction(){if(callState)return;const vw=OV.querySelector('.viewer');if(vw)return closeViewer();if(OV.querySelector('.videoOv'))return closeVideo();if(OV.querySelector('.np'))return closeNP();
  if(view==='lock')return goPin();if(view==='pin')return;if(view==='home')return HOME.animate([{transform:'none'},{transform:'scale(.97)'},{transform:'none'}],250);closeApp()}
 (function hbGesture(){const hb=$('#hb');let y0=null;hb.addEventListener('pointerdown',e=>{y0=e.clientY;hb.setPointerCapture(e.pointerId)});hb.addEventListener('pointerup',e=>{if(y0===null)return;y0=null;hbAction()})})();
 (function edgeBack(){let x0=null,y0=0,pg=null;SCREEN.addEventListener('pointerdown',e=>{const r=SCREEN.getBoundingClientRect();if(!PARENT[view]||(e.clientX-r.left)/SC>22)return;x0=e.clientX;y0=e.clientY;pg=APP.lastElementChild});
@@ -242,11 +242,11 @@ function hbAction(){if(callState)return;const vw=OV.querySelector('.viewer');if(
  SCREEN.addEventListener('pointerup',e=>{if(x0===null)return;const dx=(e.clientX-x0)/SC;x0=null;if(pg)pg.style.transform='';if(dx>90)back()})})();
 
 function goBack(){if(callState)return;const ls=document.getElementById('langSheet');if(ls){ls.remove();return}
- if(OV.querySelector('.viewer'))return closeViewer();if(OV.querySelector('.np'))return closeNP();
+ if(OV.querySelector('.viewer'))return closeViewer();if(OV.querySelector('.videoOv'))return closeVideo();if(OV.querySelector('.np'))return closeNP();
  if(['lock','pin','home'].includes(view)){if(view==='pin')pinCancel();return}back()}
 function updateCrumb(){const on=!['lock','pin','home'].includes(view)&&!callState;$('#sb').classList.toggle('crumb',on)}
 $('#sbk').innerHTML=`<svg viewBox="0 0 7 12"><path d="M6 1 1 6l5 5"/></svg>${t('home')}`;
-$('#sbk').addEventListener('click',e=>{e.stopPropagation();if(callState)return;if(OV.querySelector('.viewer'))closeViewer();if(OV.querySelector('.np'))closeNP();closeApp()});
+$('#sbk').addEventListener('click',e=>{e.stopPropagation();if(callState)return;if(OV.querySelector('.viewer'))closeViewer();if(OV.querySelector('.videoOv'))closeVideo();if(OV.querySelector('.np'))closeNP();closeApp()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')hbAction();else if(e.key==='Backspace'&&!e.target.closest('input,textarea')){e.preventDefault();goBack()}});
 document.addEventListener('mouseup',e=>{if(e.button===3){e.preventDefault();goBack()}});
 try{history.pushState({wb:1},'');addEventListener('popstate',()=>{goBack();history.pushState({wb:1},'')})}catch(e){}
@@ -320,26 +320,21 @@ function avatarFor(name,group){if(name===MAIN_CHAT)return '<img src="'+A('media/
 
 function otherUnread(){return Object.entries(unread).filter(([k])=>k!==chatId).reduce((a,[,b])=>a+b,0)+(chatId==='周湘'?0:zhouUnread)}
 VIEWS.wechat=()=>{const list=chatNames.slice().sort((a,b)=>dateKey(b)-dateKey(a));
- return{cls:'kk',html:`<div class="kk-h"><b>${t('chats')}</b><span>${G.search}${G.chatPlus}${G.gear}</span></div><div class="scroll"><button class="crow moments-entry" onclick="push('moments')"><div class="av">${avatarForMe()}</div><div style="flex:1;min-width:0"><div class="cn">朋友圈</div><div class="cp">由淼：贿赂成功~</div></div><div class="cm"><span class="ct">10/19</span></div></button>${list.map(n=>{const arr=chatData[n]||[];let last=arr.filter(x=>x[1]!=='date').slice(-1)[0],time=fmtLabel(lastDate(n)),cnt=unread[n]||0;
+ return{cls:'kk',html:`<div class="kk-h"><b>${t('chats')}</b><span>${G.search}${G.chatPlus}${G.gear}</span></div><div class="scroll">${list.map(n=>{const arr=chatData[n]||[];let last=arr.filter(x=>x[1]!=='date').slice(-1)[0],time=fmtLabel(lastDate(n)),cnt=unread[n]||0;
   if(n==='周湘'&&todayChat.length){last=todayChat[todayChat.length-1];time=last[2];cnt=zhouUnread}
   return `<button class="crow" onclick="chatId=${esc(JSON.stringify(n))};push('chat')"><div class="av">${avatarFor(n,isGroup(n))}</div><div style="flex:1;min-width:0"><div class="cn">${esc(dn(n))}${MEMBERS[n]?`<small>${MEMBERS[n]}</small>`:''}</div><div class="cp">${last?esc(previewText(last[0],isGroup(n))):''}</div></div><div class="cm"><span class="ct">${time}</span>${cnt?`<span class="kbdg">${cnt}</span>`:''}</div></button>`}).join('')}</div>
  ${tabbar([['person',t('friends')],['chat',t('chats')],['openchat',t('openChat')],['bag',t('shopping')],['dotsH',t('more')]],1)}`}};
 
-/* --- 朋友圈 --- */
-VIEWS.moments=()=>({cls:'moments',html:`<div class="nav solid"><button class="nb-back" onclick="back()">${G.chevL}微信</button><div class="nb-title">朋友圈</div><div class="nb-right">${G.camera}</div></div>
- <div class="scroll">
-  <div class="mm-hero"><div class="mm-hero-av"><img src="${A('media/avatar_youmiao.jpg')}" alt=""></div><div class="mm-hero-name">由淼</div></div>
-  ${moments.map(m=>`<div class="mm-post"><div class="mm-head"><img src="${A(m.avatar)}" alt=""><b>${esc(m.name)}</b></div><p>${esc(m.text)}</p><div class="mm-img"><img src="${A(m.img)}" alt=""></div><div class="mm-time">${esc(m.time)}</div></div>`).join('')}
- </div>`});
+/* --- 朋友圈（已移除） --- */
 
 const AUD_DUR={'media/voice_01.mp3':'0:08','media/voice_02.mp3':'0:11','media/voice_03.mp3':'0:06'};
 function fileInfo(n){if(/曲目|演出/.test(n))return[t('f_assign'),'1.2MB'];if(/训练|脚脚/.test(n))return[t('f_check'),'48KB'];return[t('f_assign2'),'1.3MB']}
 function bubble(s){const m=mediaLabels[s];
  if(m&&m.kind==='gift')return '<div class="bb gift"><div class="gt">☕️</div><div class="gb"><b>'+t('giftArrived')+'</b>'+t('giftItem')+'</div><div class="gbtn">'+t('giftCheck')+'</div></div>';
  if(m&&m.kind==='file'){const f=fileInfo(s);return '<div class="bb file"><span class="fi">'+f[0].split('.').pop().toUpperCase()+'</span><div><div class="fn">'+esc(f[0])+'</div><div class="fs">'+t('expired')+' · '+f[1]+'</div></div></div>'}
- if(m&&m.kind==='video'){const th=A(m.thumb||m.src);return '<div class="bb img vidmsg" onclick="event.stopPropagation();openViewerSrc(\''+th+'\',this.firstElementChild)"><img src="'+th+'" alt=""><span class="vplay">'+G.playF.replace('<svg','<svg width="34" fill="#fff"')+'</span></div>'}
+ if(m&&m.kind==='video'){const th=A(m.thumb||m.src);return '<div class="bb img vidmsg" onclick="event.stopPropagation();openVideo(\''+A(m.src)+'\')"><img src="'+th+'" alt=""><span class="vplay">'+G.playF.replace('<svg','<svg width="34" fill="#fff"')+'</span></div>'}
  if(m&&m.kind==='image')return '<div class="bb img" onclick="event.stopPropagation();openViewerSrc(\''+A(m.src)+'\',this.firstElementChild)"><img src="'+A(m.src)+'" alt=""></div>';
- if(m&&m.kind==='video'){const th=A(m.thumb||m.src);return '<div class="bb img vidmsg" onclick="event.stopPropagation();openViewerSrc(\''+th+'\',this.firstElementChild)"><img src="'+th+'" alt=""><span class="vplay">'+G.playF.replace('<svg','<svg width="34" fill="#fff"')+'</span></div>'}
+ if(m&&m.kind==='video'){const th=A(m.thumb||m.src);return '<div class="bb img vidmsg" onclick="event.stopPropagation();openVideo(\''+A(m.src)+'\')"><img src="'+th+'" alt=""><span class="vplay">'+G.playF.replace('<svg','<svg width="34" fill="#fff"')+'</span></div>'}
  if(m&&m.kind==='audio'){let w='';for(let i=0;i<20;i++)w+='<i style="height:'+(5+Math.round(Math.abs(Math.sin(i*1.7+s.length))*15))+'px;animation-delay:-'+((i%5)*.13)+'s"></i>';return '<div class="bb aud" data-src="'+A(m.src)+'" onclick="event.stopPropagation();playChatAudio(this)"><span class="pl">'+G.playF+'</span><span class="wv">'+w+'</span><span class="du">'+(AUD_DUR[m.src]||'0:10')+'</span></div>'}
  const b=s.match(/^\[(.+)\]$/);if(b){const n=b[1];
   if(KIND_WORDS.gift.test(n))return '<div class="bb gift"><div class="gt">☕️</div><div class="gb"><b>'+t('giftArrived')+'</b>'+t('giftItem')+'</div><div class="gbtn">'+t('giftCheck')+'</div></div>';
@@ -355,15 +350,15 @@ function chatItems(id){const arr=id==='周湘'?[...chatData[id],...(todayChat.le
 function avatarForMe(){return '<img src="'+A('media/avatar_youmiao.jpg')+'" alt="">'}
 function chatMsgs(id){const it=chatItems(id);let o='';
  it.forEach((x,i)=>{if(x.date){o+=`<div class="dpill"><span>${G.calSm.replace('<svg','<svg width="12" height="12"')}${fullDate(x.date)}</span></div>`;return}
-  const p=it[i-1],n=it[i+1];const first=!p||p.date||p.who!==x.who;const last=!n||n.date||n.who!==x.who||n.time!==x.time;const me=x.who==='me';
+  const n=it[i+1];const last=!n||n.date||n.who!==x.who||n.time!==x.time;const me=x.who==='me';
   const tm=last?`<div class="tm"><span>${x.time}</span></div>`:'';
-  o+=`<div class="ln ${me?'me':'th'} ${first?'first':''}">${me&&first?`<div class="sav meav">${avatarForMe()}</div>`:''}${!me&&first?`<div class="sav">${avatarFor(x.sender)}</div>`:''}<div class="col" style="${me?'align-items:flex-end':''}"><div class="wrap">${me?tm+bubble(x.text):bubble(x.text)+tm}</div></div></div>`});return o}
+  o+=`<div class="ln ${me?'me':'th'} first">${me?`<div class="sav meav">${avatarForMe()}</div>`:`<div class="sav">${avatarFor(x.sender)}</div>`}<div class="col" style="${me?'align-items:flex-end':''}"><div class="wrap">${me?tm+bubble(x.text):bubble(x.text)+tm}</div></div></div>`});return o}
 VIEWS.chat=()=>({cls:'chat',html:`<div class="chat-h"><button class="bk" onclick="back()">${G.chevL}<span>${otherUnread()||''}</span></button><div class="nm">${esc(dn(chatId))}</div><div class="rt">${G.search}${G.menu}</div></div>
  <div class="msgs" id="msgs">${chatMsgs(chatId)}</div>
  ${chatId==='周湘'?'<div class="chat-opts" id="opts"></div>':''}
  <div class="cin safe" id="cin">${G.plusSq}<div class="fld ro" id="fld">发消息</div>${G.smile}<button class="snd ro" id="snd">${G.arrowUp}</button></div>`,
  init:()=>{if(chatId==='周湘')zhouUnread=0;else unread[chatId]=0;typing=false;replyBusy=false;
-  if(chatId==='周湘'){if(autoMsgDone&&chatStage==='pre')chatStage='sad';if(phoneDone&&(!chatStage||chatStage==='pre'||chatStage==='sad'))chatStage='topics';}
+  if(chatId==='周湘'){if(phoneDone&&(!chatStage||chatStage==='pre'||chatStage==='sad'))chatStage='topics';}
   scrollChat();renderChoices()}});
 function scrollChat(smooth){const b=$('#msgs');if(!b)return;if(smooth)b.scrollTo({top:b.scrollHeight,behavior:'smooth'});else b.scrollTop=b.scrollHeight}
 function refreshChat(pop){const b=$('#msgs');if(!b||view!=='chat')return;b.innerHTML=chatMsgs(chatId);scrollChat();if(pop){const l=b.lastElementChild&&b.lastElementChild.querySelector('.bb');if(l)l.classList.add('pop')}}
@@ -375,19 +370,21 @@ function deliverSohee(text){todayChat.push([text,'them',nowAmpm()]);saveState();
 function pushMe(text){todayChat.push([text,'me',nowAmpm()]);if(view==='chat'&&chatId==='周湘')refreshChat(true);saveState()}
 
 function choiceSet(){return LIVE_OPTIONS[chatStage]||[]}
+function visibleChoices(){return choiceSet().filter(o=>!o.key||!doneKeys[o.key])}
 function renderChoices(){const box=document.getElementById('opts');if(!box)return;if(chatId!=='周湘'||callState){box.innerHTML='';box.classList.remove('on');return}
- const list=choiceSet();box.innerHTML=list.map((o,i)=>`<button class="opt" onclick="chooseOption(${i})">${esc(o.t)}</button>`).join('');box.classList.toggle('on',list.length>0)}
-function chooseOption(i){if(callState||typing)return;const list=choiceSet(),o=list[i];if(!o)return;
- typing=true;pushMe(o.t);renderChoices();let tt=520;
- o.r.forEach(m=>{const dur=520+String(m).length*40;setTimeout(()=>{hideTyping();showTyping()},tt);tt+=dur;setTimeout(()=>{hideTyping();deliverSohee(m)},tt);tt+=220});
- setTimeout(()=>{typing=false;if(o.next!==undefined)chatStage=o.next;renderChoices();saveState()},tt+160)}
+ const list=visibleChoices();box.innerHTML=list.map((o,i)=>`<button class="opt" onclick="chooseOption(${i})">${esc(o.t)}</button>`).join('');box.classList.toggle('on',list.length>0)}
+function chooseOption(i){if(callState||typing)return;const list=visibleChoices(),o=list[i];if(!o)return;
+ if(o.key)doneKeys[o.key]=true;
+ typing=true;pushMe(o.t);const ob=document.getElementById('opts');if(ob){ob.innerHTML='';ob.classList.remove('on')}let tt=620;
+ o.r.forEach(m=>{const dur=620+String(m).length*40;setTimeout(()=>{hideTyping();showTyping()},tt);tt+=dur;setTimeout(()=>{hideTyping();deliverSohee(m)},tt);tt+=220});
+ setTimeout(()=>{typing=false;if(o.next!==undefined)chatStage=o.next;renderChoices();saveState()},tt+260)}
 
 function afterCallTopics(){chatStage='topics';if(view==='chat'&&chatId==='周湘')renderChoices();saveState()}
 function branchAfter(kind){const me=kind==='miss'?BRANCH_MISS_ME:BRANCH_DECLINE_ME;const them=kind==='miss'?BRANCH_MISS_THEM:BRANCH_DECLINE_THEM;
  chatStage='topics';saveState();let tt=350;
- me.forEach(m=>{setTimeout(()=>{pushMe(m)},tt);tt+=520});
- them.forEach(m=>{setTimeout(()=>{deliverSohee(m)},tt);tt+=1150});
- setTimeout(()=>{if(view==='chat'&&chatId==='周湘')renderChoices();saveState()},tt+180)}
+ me.forEach(m=>{setTimeout(()=>{pushMe(m)},tt);tt+=620});
+ them.forEach(m=>{setTimeout(()=>{deliverSohee(m)},tt);tt+=1250});
+ setTimeout(()=>{if(view==='chat'&&chatId==='周湘')renderChoices();saveState()},tt+220)}
 function playChatAudio(){}
 
 function showToast(msg){let d=OV.querySelector('.toast');if(d)d.remove();d=document.createElement('div');d.className='toast';d.textContent=msg;OV.appendChild(d);setTimeout(()=>d.remove(),2000)}
@@ -429,7 +426,7 @@ let vList=allPhotos,vIdx=0;
 function fitRect(nw,nh){const W=SCREEN.clientWidth,H=SCREEN.clientHeight,s=Math.min(W/nw,H/nh);const w=nw*s,h=nh*s;return{x:(W-w)/2,y:(H-h)/2,w,h}}
 function placeImg(img){const f=fitRect(img.naturalWidth||1,img.naturalHeight||1);Object.assign(img.style,{left:f.x+'px',top:f.y+'px',width:f.w+'px',height:f.h+'px'});return f}
 function flipFrom(img,r,f){const s=Math.max(r.w/f.w,r.h/f.h),ix=Math.max(0,(f.w*s-r.w)/2/s),iy=Math.max(0,(f.h*s-r.h)/2/s);return{transform:`translate(${r.x+r.w/2-(f.x+f.w/2)}px,${r.y+r.h/2-(f.y+f.h/2)}px) scale(${s})`,clipPath:`inset(${iy}px ${ix}px round ${8/s}px)`}}
-function openViewerSrc(src,el){vList=[{src,sec:t('app_wechat'),sub:t('photo')}];openViewer(0,el,true)}
+function openViewerSrc(src,el,sec,sub){vList=[{src,sec:sec||t('app_wechat'),sub:sub||t('photo')}];openViewer(0,el,true)}
 async function openViewer(i,el,custom){if(!custom)vList=allPhotos;vIdx=i;const p=vList[i];const r=el?relRect(el):null;
  const v=document.createElement('div');v.className='viewer';v.innerHTML=`<div class="vbg"></div><img class="vi" src="${p.src}" alt=""><div class="vt"><button class="nb-back" onclick="closeViewer()">${G.chevL}</button><div class="ttl" id="vttl"></div><div class="nb-right" style="color:#fff">${t('edit')}</div></div><div class="vb">${G.share}${G.heart}${G.info}${G.trash}</div>`;OV.appendChild(v);setVTitle();setStatus(true);
  const img=v.querySelector('.vi');try{await img.decode()}catch(e){}const f=placeImg(img);
@@ -455,25 +452,74 @@ function viewerGestures(v){const img=v.querySelector('.vi'),bg=v.querySelector('
    setTimeout(async()=>{vIdx+=dir;img.getAnimations().forEach(a=>a.cancel());img.style.transform='';img.src=vList[vIdx].src;try{await img.decode()}catch(e){}placeImg(img);setVTitle();img.animate([{transform:`translateX(${dir*110}%)`},{transform:'none'}],{duration:280,easing:'cubic-bezier(.2,.9,.25,1)'})},210);return}
   img.animate([{transform:img.style.transform||'none'},{transform:'none'}],{duration:300,easing:'cubic-bezier(.2,1.2,.4,1)'});img.style.transform='';bg.style.opacity=1})}
 
+function openVideo(src){const v=document.createElement('div');v.className='videoOv';v.innerHTML=`<video src="${src}" controls autoplay playsinline></video><button class="vclose" onclick="event.stopPropagation();closeVideo()">${G.chevL}</button>`;OV.appendChild(v);setStatus(true);v.animate([{opacity:0},{opacity:1}],{duration:240});v.addEventListener('click',e=>{if(e.target===v)closeVideo()})}
+function closeVideo(){const v=OV.querySelector('.videoOv');if(!v)return;v.remove();setStatus(viewDark());updateIsland()}
+
 /* --- 小红书 --- */
 /* --- 小红书（图文，无视频） --- */
 const XHS_AUTHOR='莱恩莱财莱一脚';
-function xhsCard(n,i){return `<div class="xhs-card"><div class="xhs-im" onclick="openViewerSrc('${A(n.img)}',this.firstElementChild)"><img src="${A(n.img)}" alt=""></div><div class="xhs-bd"><b>${esc(n.title)}</b><p>${esc(n.desc)}</p><div class="xhs-ft"><span>${esc(XHS_AUTHOR)}</span><span>❤ ${esc(n.likes)}</span></div></div></div>`}
-VIEWS.xhs=()=>({cls:'ig',html:`<div class="ig-h"><b>小红书</b><span style="flex:1"></span>${G.search}${G.bell}</div>
+let xhsId=0,xhsQuery='';
+function xhsCard(n,i){const media=n.img?`<div class="xhs-im" onclick="event.stopPropagation();openViewerSrc('${A(n.img)}',this.firstElementChild,'小红书')"><img src="${A(n.img)}" alt=""></div>`:`<div class="xhs-im"><div class="xhs-ph">图片待补</div></div>`;return `<div class="xhs-card" onclick="xhsId=${i};push('xhsPost')">${media}<div class="xhs-bd"><b>${esc(n.title)}</b><p>${esc(n.desc)}</p><div class="xhs-ft"><span>${esc(XHS_AUTHOR)}</span><span>❤ ${esc(n.likes)}</span></div></div></div>`}
+VIEWS.xhs=()=>({cls:'ig',html:`<div class="ig-h"><b>小红书</b><span style="flex:1"></span><button class="ig-sbtn" onclick="xhsQuery='';push('xhsSearch')">${G.search}</button>${G.bell}</div>
  <div class="scroll" style="padding-top:98px;padding-bottom:110px">
   <div class="xhs-tabs"><span class="on">关注</span><span>发现</span><span>附近</span></div>
   <div class="xhs-feed">${xhsNotes.map((n,i)=>xhsCard(n,i)).join('')}</div>
  </div>
  <div class="tabbar"><button class="on">${G.home}<span>首页</span></button><button>${G.search}<span>购物</span></button><button>${G.comment}<span>消息</span></button><button onclick="push('xhsProfile')">${G.person}<span>我</span></button></div>`});
+VIEWS.xhsSearch=()=>{const q=(xhsQuery||'').trim();const body=n=>(n.title+' '+n.desc+' '+(n.body||'')).toLowerCase();const res=q?xhsNotes.map((n,i)=>[n,i]).filter(([n])=>body(n).includes(q.toLowerCase())):[];
+ return{cls:'ig',html:`<div class="ig-h"><b>搜索</b><span style="flex:1"></span><button onclick="back()" style="width:26px;color:#111">${G.chevL}</button></div>
+ <div class="scroll" style="padding-top:100px;padding-bottom:40px">
+  <div class="xs-bar">${G.search}<input id="xsq" placeholder="搜索笔记 / 用户" value="${esc(q)}" readonly>${q?`<button class="xs-clear" onclick="xhsQuery='';show('xhsSearch')">✕</button>`:''}</div>
+  ${q?`<div class="xs-h">搜索结果</div>${res.length?`<div class="xhs-feed">${res.map(([n,i])=>xhsCard(n,i)).join('')}</div>`:`<div class="xs-empty">没有找到「${esc(q)}」相关笔记<br><small>换个词试试</small></div>`}`
+   :`<div class="xs-h">搜索历史</div><div class="xs-tags">${XHS_SEARCH.map(k=>`<button class="xs-tag" onclick="xhsQuery='${esc(k)}';show('xhsSearch')">${esc(k)}</button>`).join('')}</div>`}
+ </div>`}};
 VIEWS.xhsProfile=()=>({cls:'ig',html:`<div class="ig-h"><b>我的主页</b><span style="flex:1"></span><button onclick="back()" style="width:26px;color:#111">${G.chevL}</button></div>
  <div class="scroll" style="padding-top:98px;padding-bottom:110px">
-  <div class="igp"><div class="pp"><img src="${A('media/avatar_xhs.jpg')}" alt=""></div><div class="st"><span><b>7</b>${t('posts')}</span><span><b>1.2万</b>${t('followers')}</span><span><b>36</b>${t('following')}</span></div></div>
+  <div class="igp"><div class="pp"><img src="${A('media/avatar_xhs.jpg')}" alt=""></div><div class="st"><span><b>${xhsNotes.length}</b>${t('posts')}</span><span><b>1.2万</b>${t('followers')}</span><span><b>36</b>${t('following')}</span></div></div>
   <div class="igbio"><b>莱恩莱财莱一脚</b><br>${t('bio')}<br><span style="color:#999;font-size:13px">小红书号：zysj0203</span></div>
   <div class="igbtn"><button class="primary">${t('followingBtn')}</button><button>${t('message')}</button><button class="sq">${G.person.replace('<svg','<svg width="18" height="18"')}</button></div>
-  <div class="igtabs"><span class="on">笔记 7</span><span>收藏</span><span>赞过</span></div>
-  <div class="iggrid">${xhsNotes.map(n=>`<button onclick="openViewerSrc('${A(n.img)}',this.firstElementChild)"><img src="${A(n.img)}" alt=""><span class="vc">❤ ${esc(n.likes)}</span></button>`).join('')}</div>
+  <div class="igtabs"><span class="on">笔记 ${xhsNotes.length}</span><span>收藏</span><span>赞过</span></div>
+  <div class="iggrid">${xhsNotes.map(n=>n.img?`<button onclick="openViewerSrc('${A(n.img)}',this.firstElementChild,'小红书')"><img src="${A(n.img)}" alt=""><span class="vc">❤ ${esc(n.likes)}</span></button>`:`<button class="xhs-ph-btn"><span>图片待补</span><span class="vc">❤ ${esc(n.likes)}</span></button>`).join('')}</div>
  </div>
  <div class="tabbar"><button onclick="show('xhs')">${G.home}<span>首页</span></button><button>${G.search}<span>购物</span></button><button>${G.comment}<span>消息</span></button><button class="on">${G.person}<span>我</span></button></div>`});
+
+VIEWS.xhsPost=()=>{const n=xhsNotes[xhsId]||xhsNotes[0];return{cls:'ig xp',html:`<div class="ig-h"><b>笔记</b><span style="flex:1"></span><button onclick="back()" style="width:26px;color:#111">${G.chevL}</button></div>
+ <div class="scroll" style="padding-top:100px;padding-bottom:40px">
+  <div class="xp-head"><img class="xp-av" src="${A('media/avatar_xhs.jpg')}" alt=""><div style="flex:1"><b>${esc(XHS_AUTHOR)}</b><small>${t('followingBtn')}</small></div><button class="xp-follow">+ 关注</button></div>
+  ${n.img?`<div class="xp-im" onclick="openViewerSrc('${A(n.img)}',this.firstElementChild,'小红书')"><img src="${A(n.img)}" alt=""></div>`:''}
+  <div class="xp-bd"><h2>${esc(n.title)}</h2><div class="xp-text">${esc(n.body||n.desc)}</div></div>
+  <div class="xp-ft"><span class="xp-tag">${esc(n.tag||'#日常')}</span><span>❤ ${esc(n.likes)} · ${esc(t('likedBy',n.likes))}</span></div>
+  <div class="xp-comment">${G.comment}<input placeholder="说点什么…" readonly></div>
+ </div>
+ <div class="tabbar"><button onclick="show('xhs')">${G.home}<span>首页</span></button><button>${G.search}<span>购物</span></button><button>${G.comment}<span>消息</span></button><button class="on">${G.person}<span>我</span></button></div>`}};
+
+/* --- 抖音 --- */
+function douyinList(){return (typeof DOUYIN_VIDEOS!=='undefined'&&DOUYIN_VIDEOS)?DOUYIN_VIDEOS:[]}
+function dyItemHTML(v,i){return `<div class="dy-item" data-i="${i}"><video src="${A(v.file)}" muted loop playsinline preload="metadata"></video><div class="dy-mask"></div>
+ <div class="dy-side"><div class="dy-av"><img src="${A(v.avatar||'media/avatar_youmiao.jpg')}" alt=""></div>
+  <button class="dy-act" onclick="event.stopPropagation();dyLike(this)"><span class="dy-i">${G.heart}</span><small>${esc(v.likes||'1.2万')}</small></button>
+  <button class="dy-act" onclick="event.stopPropagation()"><span class="dy-i">${G.comment}</span><small>${esc(v.comments||'286')}</small></button>
+  <button class="dy-act" onclick="event.stopPropagation()"><span class="dy-i">${G.share}</span><small>${esc(v.shares||'1234')}</small></button>
+  <div class="dy-disc">${G.musicNote}</div></div>
+ <div class="dy-cap"><b>@${esc(v.user||'由淼')}</b><p>${esc(v.text||'')}</p><div class="dy-music">♫ ${esc(v.music||'原声 - 由淼')}</div></div>
+ <div class="dy-play">${G.playF}</div></div>`}
+function dyLike(b){if(!b)return;b.classList.toggle('liked');vib(10)}
+function dyGo(dir){const feed=document.getElementById('dyfeed');if(!feed)return;const H=feed.clientHeight;const items=[...feed.querySelectorAll('.dy-item')];if(!items.length)return;let cur=Math.round(feed.scrollTop/H);cur=Math.max(0,Math.min(items.length-1,cur+dir));feed.scrollTo({top:cur*H,behavior:'smooth'})}
+function dyInit(pg){const feed=pg.querySelector('#dyfeed');const items=[...pg.querySelectorAll('.dy-item')];if(!items.length)return;
+ const io=new IntersectionObserver(es=>{es.forEach(e=>{const v=e.target.querySelector('video');if(!v)return;if(e.isIntersecting){v.muted=true;v.play().catch(()=>{});e.target.classList.remove('paused')}else{v.pause()}})},{root:feed,threshold:.55});
+ items.forEach(it=>io.observe(it));
+ let my=null,dragged=false,lastWheel=0;
+ feed.addEventListener('wheel',e=>{e.preventDefault();const now=Date.now();if(now-lastWheel<420||Math.abs(e.deltaY)<8)return;lastWheel=now;dyGo(e.deltaY>0?1:-1)},{passive:false});
+ feed.addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse')return;my=e.clientY;dragged=false});
+ feed.addEventListener('pointermove',e=>{if(my===null)return;if(Math.abs(e.clientY-my)>6)dragged=true});
+ feed.addEventListener('pointerup',e=>{if(my===null)return;const d=e.clientY-my;my=null;if(Math.abs(d)>45){dragged=true;dyGo(d<0?1:-1)}});
+ feed.addEventListener('click',e=>{if(dragged){dragged=false;return}if(e.target.closest('button')||e.target.closest('.dy-av')||e.target.closest('.dy-side'))return;const it=e.target.closest('.dy-item');if(!it)return;const v=it.querySelector('video');if(v.paused){v.play().catch(()=>{});it.classList.remove('paused')}else{v.pause();it.classList.add('paused')}vib(6)});
+ feed.addEventListener('dblclick',e=>{const it=e.target.closest('.dy-item');if(it)dyLike(it.querySelector('.dy-act'))});
+ pg._cleanup=()=>io.disconnect()}
+VIEWS.douyin=()=>{const list=douyinList();return{cls:'dyv',dark:true,html:`
+ <div class="dy-top"><div class="dy-tabs"><span>关注</span><b class="on">推荐</b><span>同城</span></div><button class="dy-search">${G.search}</button></div>
+ <div class="dy-feed" id="dyfeed">${list.length?list.map(dyItemHTML).join(''):`<div class="dy-empty"><b>还没有视频</b><span>把视频放进 media/douyin/ 后重新构建</span></div>`}</div>`,
+ init:pg=>dyInit(pg)}};
 
 const artStyle=i=>ART[i]?`background-image:url(${ART[i]})`:'';
 VIEWS.music=()=>({html:navHTML({title:t('songs'),back:t('libraryMu'),backFn:'closeApp()',right:''})+`<div class="scroll" style="padding-bottom:180px"><h1 class="lt">${t('songs')}</h1>
@@ -565,9 +611,13 @@ VIEWS.screentime=()=>{const apps=[['wechat',t('hm',2,41),100],['xhs',t('hm',1,52
  <div class="gh">${t('notifSec')}</div><div class="group"><div class="row"><span style="flex:1">${t('app_wechat')}</span><span class="muted">${t('perDay',41)}</span></div></div><div style="height:30px"></div></div>`}};
 
 
-function startRing(){ringOnce();clearInterval(ringIv);ringIv=setInterval(()=>{ringOnce();vib([400,250,400])},2600);vib([400,250,400])}
-function stopRing(){clearInterval(ringIv);ringIv=null;clearTimeout(ringTo);try{navigator.vibrate&&navigator.vibrate(0)}catch(e){}}
-function incomingCall(){callName='周湘';callDir='in';callPrev=view;callState='ring';if(nowSong>=0||PLAYER.dataset.voice)PLAYER.pause();APP.querySelectorAll('video').forEach(v=>v.pause());OV.querySelectorAll('.banner').forEach(b=>b.remove());renderCall();startRing();ringTo=setTimeout(missCall,20000);saveState()}
+let toneIv=null,ringA=null;
+function stopToneRing(){clearInterval(toneIv);toneIv=null}
+function fallbackRing(){stopToneRing();ringOnce();toneIv=setInterval(ringOnce,2600)}
+function startRing(){vib([400,250,400]);clearInterval(ringIv);ringIv=setInterval(()=>vib([400,250,400]),2600);
+ try{ringA=ringA||new Audio(A('media/ringtone.mp3'));ringA.pause();ringA.currentTime=0;ringA.volume=1;const pr=ringA.play();if(pr&&pr.catch)pr.catch(()=>fallbackRing())}catch(e){fallbackRing()}}
+function stopRing(){clearInterval(ringIv);ringIv=null;clearTimeout(ringTo);stopToneRing();if(ringA){try{ringA.pause();ringA.currentTime=0}catch(e){}}try{navigator.vibrate&&navigator.vibrate(0)}catch(e){}}
+function incomingCall(){callName='周湘';callDir='in';callPrev=view;callState='ring';if(nowSong>=0||PLAYER.dataset.voice)PLAYER.pause();APP.querySelectorAll('video').forEach(v=>v.pause());OV.querySelectorAll('.banner').forEach(b=>b.remove());renderCall();startRing();ringTo=setTimeout(missCall,15000);saveState()}
 function callTop(){const isZ=callName==='周湘';const av=isZ?`<div class="wav"><img src="${A('media/avatar_zhouxiang.jpg')}" alt=""></div>`:`<div class="wav"><span style="width:100%;height:100%;display:grid;place-items:center;background:linear-gradient(#a5abb6,#7f858f)">${/^[0-9*-]+$/.test(callName)?G.sil.replace('<svg','<svg width="64"'):`<b style="font-size:40px;color:#fff;font-weight:500">${esc([...dn(callName)][0])}</b>`}</span></div>`;return av+`<div class="wnm">${esc(dn(callName))}</div>`}
 function renderCall(){let c=OV.querySelector('.call');if(!c){c=document.createElement('div');c.className='call wxc';OV.appendChild(c);c.animate([{opacity:0,transform:'scale(1.05)'},{opacity:1,transform:'none'}],{duration:380,easing:'cubic-bezier(.2,.9,.25,1)'})}
  setStatus(true);const dl=callState==='dialing';
@@ -599,18 +649,17 @@ let lastMin=-1;
 function tick(){typeof updateCrumb==="function"&&updateCrumb();const now=new Date();$('#sbt').textContent=clock12();const lk=$('#lkt');if(lk)lk.textContent=clock12();
  if(now.getMinutes()!==lastMin){lastMin=now.getMinutes();if(view==='home'&&!HOME.getAnimations().length)renderHome()}
  const e=elapsed();
- if(!autoMsgDone&&e>=60){autoMsgDone=true;chatStage='sad';deliverSohee(AUTO_MSG);if(view==='chat'&&chatId==='周湘')renderChoices();saveState()}
- if(!callTriggered&&e>=120){callTriggered=true;saveState();if(!callState&&!phoneDone&&!declined)incomingCall()}
+ if(!callTriggered&&e>=60){callTriggered=true;saveState();if(!callState&&!phoneDone&&!declined)incomingCall()}
  if(callState==='active'){const sec=Math.floor((Date.now()-callStart)/1000);const tm=$('#ctime');if(tm)tm.textContent=pad(Math.floor(sec/60))+':'+pad(sec%60);
   const S=curScript||speech;const idx=Math.min(S.length-1,Math.floor(sec/3));if(idx!==capIdx){capIdx=idx;const cap=$('#cap');if(cap){cap.animate([{opacity:.2,transform:'translateY(6px)'},{opacity:1,transform:'none'}],{duration:280});cap.innerHTML=`<small>${esc(dn(S[idx][0]))}</small>${esc(S[idx][1])}`}}
   if(sec>S.length*3+2)endCall()}}
 
 function fit(){const ph=$('#phone');const mob=innerWidth<=540;ph.classList.toggle('mob',mob);ph.classList.toggle('short',mob&&innerHeight<740);if(mob){ph.style.width=innerWidth+'px';ph.style.height=innerHeight+'px';ph.style.transform='';SC=1}else{ph.style.width='393px';ph.style.height='852px';SC=Math.min((innerHeight-40)/852,(innerWidth-40)/393,1.1);ph.style.transform=`scale(${SC})`}}
-const SAVE_KEY='youmiao_phone_v5';
+const SAVE_KEY='youmiao_phone_v6';
 let unlocked=false;
-function saveState(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({v:5,unlocked:unlocked,todayChat:todayChat,chatStage:chatStage,autoMsgDone:autoMsgDone,callTriggered:callTriggered,callBranch:callBranch,phoneDone:phoneDone,declined:declined,extraCalls:extraCalls,readMail:[...readMail],alarmStates:alarmStates,lockNotes:lockNotes}))}catch(e){}}
-function loadState(){try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');if(!s||s.v!==5)return false;
- unlocked=!!s.unlocked;todayChat=s.todayChat||[];chatStage=s.chatStage||'pre';autoMsgDone=!!s.autoMsgDone;callTriggered=!!s.callTriggered;callBranch=s.callBranch||'';phoneDone=!!s.phoneDone;declined=s.declined||0;extraCalls=s.extraCalls||[];if(s.readMail)readMail=new Set(s.readMail);if(s.alarmStates)alarmStates=s.alarmStates;if(s.lockNotes)lockNotes=s.lockNotes;
+function saveState(){try{localStorage.setItem(SAVE_KEY,JSON.stringify({v:7,unlocked:unlocked,todayChat:todayChat,chatStage:chatStage,doneKeys:doneKeys,autoMsgDone:autoMsgDone,callTriggered:callTriggered,callBranch:callBranch,phoneDone:phoneDone,declined:declined,extraCalls:extraCalls,readMail:[...readMail],alarmStates:alarmStates,lockNotes:lockNotes}))}catch(e){}}
+function loadState(){try{const s=JSON.parse(localStorage.getItem(SAVE_KEY)||'null');if(!s||s.v!==7)return false;
+ unlocked=!!s.unlocked;todayChat=s.todayChat||[];chatStage=s.chatStage||'pre';doneKeys=s.doneKeys||{};autoMsgDone=!!s.autoMsgDone;callTriggered=!!s.callTriggered;callBranch=s.callBranch||'';phoneDone=!!s.phoneDone;declined=s.declined||0;extraCalls=s.extraCalls||[];if(s.readMail)readMail=new Set(s.readMail);if(s.alarmStates)alarmStates=s.alarmStates;if(s.lockNotes)lockNotes=s.lockNotes;
  return true}catch(e){return false}}
 function resetProgress(){try{localStorage.removeItem(SAVE_KEY)}catch(e){}location.reload()}
 
