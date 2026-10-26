@@ -459,7 +459,8 @@ function closeVideo(){const v=OV.querySelector('.videoOv');if(!v)return;v.remove
 /* --- 小红书（图文，无视频） --- */
 const XHS_AUTHOR='莱恩莱财莱一脚';
 let xhsId=0,xhsQuery='';
-function xhsCard(n,i){const media=n.img?`<div class="xhs-im" onclick="event.stopPropagation();openViewerSrc('${A(n.img)}',this.firstElementChild,'小红书')"><img src="${A(n.img)}" alt=""></div>`:`<div class="xhs-im"><div class="xhs-ph">图片待补</div></div>`;return `<div class="xhs-card" onclick="xhsId=${i};push('xhsPost')">${media}<div class="xhs-bd"><b>${esc(n.title)}</b><p>${esc(n.desc)}</p><div class="xhs-ft"><span>${esc(XHS_AUTHOR)}</span><span>❤ ${esc(n.likes)}</span></div></div></div>`}
+function xhsCard(n,i){let media;if(n.video){media=`<div class="xhs-im"><img src="${A(n.img)}" alt=""><span class="xhs-play">${G.playF}</span></div>`}else if(n.img){media=`<div class="xhs-im" onclick="event.stopPropagation();openViewerSrc('${A(n.img)}',this.firstElementChild,'小红书')"><img src="${A(n.img)}" alt=""></div>`}else{media=`<div class="xhs-im"><div class="xhs-ph">图片待补</div></div>`}
+ return `<div class="xhs-card" onclick="xhsId=${i};push('xhsPost')">${media}<div class="xhs-bd"><b>${esc(n.title)}</b><p>${esc(n.desc)}</p><div class="xhs-ft"><span>${esc(n.user||XHS_AUTHOR)}</span><span>❤ ${esc(n.likes)}</span></div></div></div>`}
 VIEWS.xhs=()=>({cls:'ig',html:`<div class="ig-h"><b>小红书</b><span style="flex:1"></span><button class="ig-sbtn" onclick="xhsQuery='';push('xhsSearch')">${G.search}</button>${G.bell}</div>
  <div class="scroll" style="padding-top:98px;padding-bottom:110px">
   <div class="xhs-tabs"><span class="on">关注</span><span>发现</span><span>附近</span></div>
@@ -473,20 +474,20 @@ VIEWS.xhsSearch=()=>{const q=(xhsQuery||'').trim();const body=n=>(n.title+' '+n.
   ${q?`<div class="xs-h">搜索结果</div>${res.length?`<div class="xhs-feed">${res.map(([n,i])=>xhsCard(n,i)).join('')}</div>`:`<div class="xs-empty">没有找到「${esc(q)}」相关笔记<br><small>换个词试试</small></div>`}`
    :`<div class="xs-h">搜索历史</div><div class="xs-tags">${XHS_SEARCH.map(k=>`<button class="xs-tag" onclick="xhsQuery='${esc(k)}';show('xhsSearch')">${esc(k)}</button>`).join('')}</div>`}
  </div>`}};
-VIEWS.xhsProfile=()=>({cls:'ig',html:`<div class="ig-h"><b>我的主页</b><span style="flex:1"></span><button onclick="back()" style="width:26px;color:#111">${G.chevL}</button></div>
+VIEWS.xhsProfile=()=>{const mine=xhsNotes.filter(n=>!n.user);return{cls:'ig',html:`<div class="ig-h"><b>我的主页</b><span style="flex:1"></span><button onclick="back()" style="width:26px;color:#111">${G.chevL}</button></div>
  <div class="scroll" style="padding-top:98px;padding-bottom:110px">
-  <div class="igp"><div class="pp"><img src="${A('media/avatar_xhs.jpg')}" alt=""></div><div class="st"><span><b>${xhsNotes.length}</b>${t('posts')}</span><span><b>1.2万</b>${t('followers')}</span><span><b>36</b>${t('following')}</span></div></div>
+  <div class="igp"><div class="pp"><img src="${A('media/avatar_xhs.jpg')}" alt=""></div><div class="st"><span><b>${mine.length}</b>${t('posts')}</span><span><b>1.2万</b>${t('followers')}</span><span><b>36</b>${t('following')}</span></div></div>
   <div class="igbio"><b>莱恩莱财莱一脚</b><br>${t('bio')}<br><span style="color:#999;font-size:13px">小红书号：zysj0203</span></div>
   <div class="igbtn"><button class="primary">${t('followingBtn')}</button><button>${t('message')}</button><button class="sq">${G.person.replace('<svg','<svg width="18" height="18"')}</button></div>
-  <div class="igtabs"><span class="on">笔记 ${xhsNotes.length}</span><span>收藏</span><span>赞过</span></div>
-  <div class="iggrid">${xhsNotes.map(n=>n.img?`<button onclick="openViewerSrc('${A(n.img)}',this.firstElementChild,'小红书')"><img src="${A(n.img)}" alt=""><span class="vc">❤ ${esc(n.likes)}</span></button>`:`<button class="xhs-ph-btn"><span>图片待补</span><span class="vc">❤ ${esc(n.likes)}</span></button>`).join('')}</div>
+  <div class="igtabs"><span class="on">笔记 ${mine.length}</span><span>收藏</span><span>赞过</span></div>
+  <div class="iggrid">${mine.map(n=>n.img?`<button onclick="openViewerSrc('${A(n.img)}',this.firstElementChild,'小红书')"><img src="${A(n.img)}" alt=""><span class="vc">❤ ${esc(n.likes)}</span></button>`:`<button class="xhs-ph-btn"><span>图片待补</span><span class="vc">❤ ${esc(n.likes)}</span></button>`).join('')}</div>
  </div>
- <div class="tabbar"><button onclick="show('xhs')">${G.home}<span>首页</span></button><button>${G.search}<span>购物</span></button><button>${G.comment}<span>消息</span></button><button class="on">${G.person}<span>我</span></button></div>`});
+ <div class="tabbar"><button onclick="show('xhs')">${G.home}<span>首页</span></button><button>${G.search}<span>购物</span></button><button>${G.comment}<span>消息</span></button><button class="on">${G.person}<span>我</span></button></div>`}};
 
 VIEWS.xhsPost=()=>{const n=xhsNotes[xhsId]||xhsNotes[0];return{cls:'ig xp',html:`<div class="ig-h"><b>笔记</b><span style="flex:1"></span><button onclick="back()" style="width:26px;color:#111">${G.chevL}</button></div>
  <div class="scroll" style="padding-top:100px;padding-bottom:40px">
-  <div class="xp-head"><img class="xp-av" src="${A('media/avatar_xhs.jpg')}" alt=""><div style="flex:1"><b>${esc(XHS_AUTHOR)}</b><small>${t('followingBtn')}</small></div><button class="xp-follow">+ 关注</button></div>
-  ${n.img?`<div class="xp-im" onclick="openViewerSrc('${A(n.img)}',this.firstElementChild,'小红书')"><img src="${A(n.img)}" alt=""></div>`:''}
+  <div class="xp-head"><img class="xp-av" src="${A(n.avatar||'media/avatar_xhs.jpg')}" alt=""><div style="flex:1"><b>${esc(n.user||XHS_AUTHOR)}</b><small>${t('followingBtn')}</small></div><button class="xp-follow">+ 关注</button></div>
+  ${n.video?`<div class="xp-im xp-vid"><video src="${A(n.video)}" poster="${A(n.img)}" controls playsinline webkit-playsinline preload="metadata" x5-video-player-type="h5"></video></div>`:(n.img?`<div class="xp-im" onclick="openViewerSrc('${A(n.img)}',this.firstElementChild,'小红书')"><img src="${A(n.img)}" alt=""></div>`:'')}
   <div class="xp-bd"><h2>${esc(n.title)}</h2><div class="xp-text">${esc(n.body||n.desc)}</div></div>
   <div class="xp-ft"><span class="xp-tag">${esc(n.tag||'#日常')}</span><span>❤ ${esc(n.likes)} · ${esc(t('likedBy',n.likes))}</span></div>
   <div class="xp-comment">${G.comment}<input placeholder="说点什么…" readonly></div>
